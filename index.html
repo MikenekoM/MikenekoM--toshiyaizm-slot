@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=1536">
+    <title>パチスロ トシヤイズム | 固定モック</title>
+    <link rel="stylesheet" href="./src/styles.css">
+  </head>
+  <body>
+    <div class="stage-viewport">
+      <main class="mock-stage" id="mockStage">
+        <section class="full-layout" aria-label="全体モード">
+          <div class="full-static-top" aria-hidden="true">
+            <span>信念ランプ</span>
+            <strong>待機中</strong>
+          </div>
+          <div class="full-static-screen" aria-hidden="true">
+            <p>イズムチャンス</p>
+            <strong>信念を貫け</strong>
+            <span>その先に理想がある。</span>
+          </div>
+          <div class="full-static-reels" aria-hidden="true">
+            <div class="full-static-reel">
+              <img src="./assets/reels/reel-strip-left-v2.png" alt="">
+              <img src="./assets/reels/reel-strip-left-v2.png" alt="">
+            </div>
+            <div class="full-static-reel">
+              <img src="./assets/reels/reel-strip-center-v2.png" alt="">
+              <img src="./assets/reels/reel-strip-center-v2.png" alt="">
+            </div>
+            <div class="full-static-reel">
+              <img src="./assets/reels/reel-strip-right-v2.png" alt="">
+              <img src="./assets/reels/reel-strip-right-v2.png" alt="">
+            </div>
+          </div>
+          <img class="generated-board" src="./assets/mock/full-mode-shell-v1-alpha.png" alt="パチスロ トシヤイズムのリアル筐体モック">
+          <div class="full-reference-reels" aria-label="リール配列一覧">
+            <div class="reference-window">
+              <img src="./assets/reels/reel-strip-left-v2.png" alt="">
+            </div>
+            <div class="reference-window">
+              <img src="./assets/reels/reel-strip-center-v2.png" alt="">
+            </div>
+            <div class="reference-window">
+              <img src="./assets/reels/reel-strip-right-v2.png" alt="">
+            </div>
+          </div>
+          <div class="overview-sheet" aria-label="全体シート">
+            <div class="overview-sheet__header">
+              <span>TOSHIYAISM SLOT</span>
+              <strong>全体設計</strong>
+              <em>3枚固定、レア役から前兆、信念が通ればBBへ。</em>
+            </div>
+            <div class="overview-sheet__grid">
+              <article class="overview-card overview-card--flow">
+                <h2>基本フロー</h2>
+                <ol>
+                  <li>3枚BETで始動。</li>
+                  <li>成立役を内部抽選。</li>
+                  <li>Z/X/Cで3リール停止。</li>
+                  <li>払い出しと状態移行。</li>
+                  <li>確定後にBB開始。</li>
+                </ol>
+              </article>
+              <article class="overview-card overview-card--concept">
+                <h2>世界観</h2>
+                <p>配信部屋、信念ランプ、コメント欄で勝負の気配を見せる。</p>
+                <p>名称、図柄、演出はトシヤイズム固有。</p>
+              </article>
+              <article class="overview-card overview-card--controls">
+                <h2>操作</h2>
+                <dl class="overview-keys">
+                  <div><dt>Space</dt><dd>回す</dd></div>
+                  <div><dt>Z</dt><dd>左</dd></div>
+                  <div><dt>X</dt><dd>中</dd></div>
+                  <div><dt>C</dt><dd>右</dd></div>
+                </dl>
+              </article>
+              <article class="overview-card overview-card--roles">
+                <h2>成立役</h2>
+                <ul>
+                  <li>ベル: 8枚</li>
+                  <li>Tリプ</li>
+                  <li>弱チェ: 左上/下</li>
+                  <li>強チェ: 中段</li>
+                  <li>顔揃い</li>
+                  <li>ISM</li>
+                </ul>
+              </article>
+              <article class="overview-card overview-card--modes">
+                <h2>内部状態</h2>
+                <p>低確、通常、高確、前兆、確定の5状態。レア役で昇格し、前兆消化で確定へ進む。</p>
+              </article>
+              <article class="overview-card overview-card--bonus">
+                <h2>ボーナス</h2>
+                <ul>
+                  <li>通常BB: 66% / 79%</li>
+                  <li>上位BB: 84% / 88%寄り</li>
+                  <li>1SETは約120から190枚</li>
+                  <li>非継続で通常時へ復帰</li>
+                </ul>
+              </article>
+              <article class="overview-card overview-card--save">
+                <h2>ショップ / あいことば</h2>
+                <p>メダルで小物を購入。所持メダル、購入品、内部状態、BB情報を保存し、あいことばで復元。</p>
+              </article>
+              <article class="overview-card overview-card--payout">
+                <h2>配当メモ</h2>
+                <ul>
+                  <li>3枚固定、5ライン表示</li>
+                  <li>ベルは基本小役</li>
+                  <li>レア役は枚数より状態移行が本命</li>
+                  <li>BB中はセット単位で一括払い</li>
+                </ul>
+              </article>
+              <article class="overview-card overview-card--check">
+                <h2>見分け方</h2>
+                <ul>
+                  <li>通常: 紫の液晶</li>
+                  <li>高確: ランプ表示</li>
+                  <li>激アツ: 強レア</li>
+                  <li>前兆: ランプ強化</li>
+                </ul>
+              </article>
+              <article class="overview-card overview-card--heat">
+                <h2>演出期待度</h2>
+                <ol>
+                  <li>コメント欄がざわつく。</li>
+                  <li>弱レア役で高確へ。</li>
+                  <li>強チェリー / ISM目で激アツ。</li>
+                  <li>前兆中に液晶とランプ強化。</li>
+                  <li>確定で虹/確定演出。</li>
+                  <li>上位BBはプレミア背景。</li>
+                </ol>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="utility-panel" aria-label="ショップとあいことば">
+          <div class="utility-tabs">
+            <button class="utility-tab is-active" type="button" data-panel-tab="shop">ショップ</button>
+            <button class="utility-tab" type="button" data-panel-tab="save">あいことば</button>
+            <button class="utility-tab" type="button" data-panel-tab="imagegen">画像生成</button>
+          </div>
+          <div class="utility-content is-active" data-panel-content="shop">
+            <div class="shop-list" id="shopList"></div>
+            <div class="owned-tray" id="ownedTray" aria-label="購入済み小物"></div>
+          </div>
+          <div class="utility-content" data-panel-content="save">
+            <button class="utility-action" id="issueAikotoba" type="button">発行</button>
+            <textarea id="aikotobaOutput" readonly placeholder="ここにあいことばが出ます"></textarea>
+            <textarea id="aikotobaInput" placeholder="あいことばを入力"></textarea>
+            <button class="utility-action" id="restoreAikotoba" type="button">復元</button>
+            <p id="aikotobaMessage" class="aikotoba-message"></p>
+          </div>
+          <div class="utility-content" data-panel-content="imagegen">
+            <textarea id="imagePrompt" maxlength="1200" placeholder="生成したい画像を入力"></textarea>
+            <button class="utility-action" id="generateImageButton" type="button">画像生成</button>
+            <p id="imagegenMessage" class="aikotoba-message" role="status" aria-live="polite"></p>
+            <div class="imagegen-preview" id="imagegenPreview" hidden>
+              <img id="imagegenImage" alt="生成画像プレビュー">
+            </div>
+          </div>
+        </section>
+
+        <section class="play-layout" aria-label="プレイモード">
+          <div class="play-machine">
+            <img class="play-board-source" src="./assets/mock/room-style-shell-v1-alpha.png" alt="">
+            <div class="game-hud" aria-label="ゲーム状況">
+              <div class="hud-meter">
+                <span>メダル</span>
+                <strong id="coinDisplay">300</strong>
+              </div>
+              <div class="hud-meter hud-meter--bet">
+                <span>BET</span>
+                <div class="bet-controls" aria-label="BET枚数">
+                  <button type="button" data-bet-step="-1" aria-label="BETを下げる">-</button>
+                  <strong id="betDisplay">3</strong>
+                  <button type="button" data-bet-step="1" aria-label="BETを上げる">+</button>
+                </div>
+                <em id="lineDisplay">5ライン</em>
+              </div>
+              <div class="hud-meter hud-meter--result">
+                <span>結果</span>
+                <strong id="resultDisplay">待機中</strong>
+              </div>
+              <div class="hud-meter hud-meter--compact">
+                <span>総ゲーム</span>
+                <strong id="totalGameDisplay">0</strong>
+              </div>
+              <div class="hud-meter hud-meter--compact">
+                <span>ボーナス間</span>
+                <strong id="bonusGameDisplay">0</strong>
+              </div>
+              <div class="hud-meter hud-meter--compact">
+                <span>内部</span>
+                <strong id="modeDisplay">通常</strong>
+              </div>
+              <div class="hud-meter hud-meter--compact">
+                <span>成立役</span>
+                <strong id="roleDisplay">待機</strong>
+              </div>
+              <div class="hud-meter hud-meter--compact hud-meter--bonus">
+                <span>BB</span>
+                <strong id="bonusInfoDisplay">-</strong>
+              </div>
+            </div>
+            <div class="top-effect-overlay" id="topEffect" aria-label="上部演出">
+              <span>信念ランプ</span>
+              <strong>待機中</strong>
+            </div>
+            <div class="play-screen-overlay" id="effectScreen" aria-label="メイン演出画面">
+              <p>イズムチャンス</p>
+              <strong>信念を貫け</strong>
+              <span>その先に理想がある。</span>
+            </div>
+            <div class="comment-stream-overlay" id="commentStream" aria-label="配信コメント演出"></div>
+            <div class="live-reels" id="liveReels" aria-label="回転リール">
+              <div class="live-reel" data-reel="0" style="--stop-y: 0px">
+                <img src="./assets/reels/reel-strip-left-v2.png" alt="">
+                <img src="./assets/reels/reel-strip-left-v2.png" alt="">
+              </div>
+              <div class="live-reel" data-reel="1" style="--stop-y: -70px">
+                <img src="./assets/reels/reel-strip-center-v2.png" alt="">
+                <img src="./assets/reels/reel-strip-center-v2.png" alt="">
+              </div>
+              <div class="live-reel" data-reel="2" style="--stop-y: -140px">
+                <img src="./assets/reels/reel-strip-right-v2.png" alt="">
+                <img src="./assets/reels/reel-strip-right-v2.png" alt="">
+              </div>
+            </div>
+            <div class="reel-glass-overlay" aria-hidden="true"></div>
+            <div class="payline-overlay" id="paylineOverlay" aria-hidden="true">
+              <span class="payline payline-center"></span>
+              <span class="payline payline-top"></span>
+              <span class="payline payline-bottom"></span>
+              <span class="payline payline-diagonal-a"></span>
+              <span class="payline payline-diagonal-b"></span>
+            </div>
+            <button class="bonus-start-button" id="bonusStartButton" type="button" hidden>ボーナス開始</button>
+            <button class="spin-hotspot" id="spinButton" type="button">回す</button>
+            <div class="play-control-labels" aria-label="停止ボタン">
+              <button type="button" data-stop="0">左</button>
+              <button type="button" data-stop="1">中</button>
+              <button type="button" data-stop="2">右</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="mode-switch" aria-label="表示モード切り替え">
+          <span>全体</span>
+          <button type="button" id="modeToggle" aria-pressed="false">
+            <span class="switch-knob"></span>
+          </button>
+          <span>プレイ</span>
+        </div>
+
+        <button class="debug-toggle" id="debugToggle" type="button" aria-pressed="false">調整</button>
+        <aside class="debug-panel" id="debugPanel" aria-label="調整パネル">
+          <div class="debug-panel__head">
+            <strong>位置調整</strong>
+            <button type="button" id="debugCopy">CSSコピー</button>
+            <button type="button" id="debugReset">リセット</button>
+          </div>
+          <div class="debug-panel__body" id="debugControls"></div>
+          <textarea id="debugOutput" readonly aria-label="調整結果"></textarea>
+        </aside>
+      </main>
+    </div>
+    <script src="./src/shop-data.js"></script>
+    <script src="./src/aikotoba.js"></script>
+    <script src="./src/comment-data.js"></script>
+    <script src="./src/app.js"></script>
+  </body>
+</html>

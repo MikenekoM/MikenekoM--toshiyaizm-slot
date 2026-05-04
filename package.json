@@ -1,0 +1,14 @@
+{
+  "name": "toshiyaizm-slot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-dist.mjs",
+    "test:smoke": "node scripts/smoke-test.mjs",
+    "test:bonus": "node scripts/bonus-smoke-test.mjs",
+    "test:roles": "node scripts/role-alignment-test.mjs",
+    "test:effects": "node scripts/effect-state-test.mjs && node scripts/effect-transition-test.mjs",
+    "test:dist": "node scripts/dist-smoke-test.mjs"
+  }
+}

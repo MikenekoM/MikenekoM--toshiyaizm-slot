@@ -1,0 +1,58 @@
+window.ToshiyaShopItems = [
+  {
+    id: "lucky-omamori",
+    name: "ラッキーお守り",
+    price: 80,
+    description: "小さな勝負運を呼びこむ定番のお守り。",
+    iconText: "守",
+  },
+  {
+    id: "golden-bell",
+    name: "金の鈴",
+    price: 120,
+    description: "軽い音で気分を上げる、手のひらサイズの鈴。",
+    iconText: "鈴",
+  },
+  {
+    id: "mini-daruma",
+    name: "ミニだるま",
+    price: 160,
+    description: "次の当たりを願って飾る小さなだるま。",
+    iconText: "だるま",
+  },
+  {
+    id: "coin-pouch",
+    name: "コイン巾着",
+    price: 200,
+    description: "増えたコインを大事にしまう縁起物の巾着。",
+    iconText: "袋",
+  },
+  {
+    id: "star-sticker",
+    name: "星ステッカー",
+    price: 60,
+    description: "台に貼りたくなる、きらっと光る星のシール。",
+    iconText: "★",
+  },
+  {
+    id: "tea-cup",
+    name: "ひと息のお茶",
+    price: 90,
+    description: "勝負の合間に落ち着ける温かいお茶。",
+    iconText: "茶",
+  },
+  {
+    id: "clover-pin",
+    name: "四つ葉ピン",
+    price: 140,
+    description: "帽子やバッグにつけられる幸運モチーフのピン。",
+    iconText: "四葉",
+  },
+  {
+    id: "rainbow-charm",
+    name: "虹色チャーム",
+    price: 240,
+    description: "少しだけ特別感のある、虹色の小さな飾り。",
+    iconText: "虹",
+  },
+];
