@@ -40,8 +40,11 @@ const beforeBonus = await page.evaluate(() => window.render_game_to_text());
 await page.click("#bonusStartButton");
 const afterStart = await page.evaluate(() => window.render_game_to_text());
 await page.keyboard.press("Space");
+const duringBattle = await page.evaluate(() => window.render_game_to_text());
+await page.screenshot({ path: path.join(root, "tmp", "bonus-battle-during.png"), fullPage: false });
+await page.waitForTimeout(1300);
 const afterSet = await page.evaluate(() => window.render_game_to_text());
 await page.screenshot({ path: path.join(root, "tmp", "bonus-smoke-test.png"), fullPage: false });
 await browser.close();
 
-console.log(JSON.stringify({ errors, beforeBonus, afterStart, afterSet }, null, 2));
+console.log(JSON.stringify({ errors, beforeBonus, afterStart, duringBattle, afterSet }, null, 2));

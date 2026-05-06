@@ -32,14 +32,14 @@
   --glass-y: 608px;
   --glass-w: 519px;
   --glass-h: 205px;
-  --spin-x: 539px;
-  --spin-y: 876px;
-  --spin-w: 80px;
-  --spin-h: 48px;
-  --stop-x: 647px;
-  --stop-y: 943px;
-  --stop-size: 82px;
-  --stop-gap: 12px;
+  --spin-x: 534px;
+  --spin-y: 838px;
+  --spin-w: 88px;
+  --spin-h: 50px;
+  --stop-x: 648px;
+  --stop-y: 874px;
+  --stop-size: 76px;
+  --stop-gap: 18px;
 }
 
 * {
@@ -988,6 +988,7 @@ button {
   border-radius: 2px;
   background: #fff;
   box-shadow: none;
+  --spin-distance: -560px;
 }
 
 .live-reel img {
@@ -1568,6 +1569,6 @@ button {
   }
 
   to {
-    transform: translateY(calc(var(--spin-start, 0px) - 560px));
+    transform: translateY(calc(var(--spin-start, 0px) + var(--spin-distance, -560px)));
   }
 }

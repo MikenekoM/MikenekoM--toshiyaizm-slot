@@ -65,14 +65,14 @@ const debugDefaults = {
   "--glass-y": 608,
   "--glass-w": 519,
   "--glass-h": 205,
-  "--spin-x": 539,
-  "--spin-y": 876,
-  "--spin-w": 80,
-  "--spin-h": 48,
-  "--stop-x": 647,
-  "--stop-y": 943,
-  "--stop-size": 82,
-  "--stop-gap": 12,
+  "--spin-x": 534,
+  "--spin-y": 838,
+  "--spin-w": 88,
+  "--spin-h": 50,
+  "--stop-x": 648,
+  "--stop-y": 874,
+  "--stop-size": 76,
+  "--stop-gap": 18,
 };
 
 const debugGroups = [
@@ -117,6 +117,7 @@ const state = {
   currentResult: null,
   effectPlan: null,
   lastPayout: 0,
+  bonusBattleAnimating: false,
   pendingBonus: null,
   bonus: null,
   lastBonusSummary: null,
@@ -665,7 +666,9 @@ function renderStatus() {
   }
   if (bonusInfoDisplay) {
     if (state.bonus) {
-      bonusInfoDisplay.textContent = `${state.bonus.set}SET ${state.bonus.rateLabel}`;
+      bonusInfoDisplay.textContent = state.bonusBattleAnimating
+        ? `BATTLE ${state.bonus.rateLabel}`
+        : `${state.bonus.set}SET ${state.bonus.rateLabel}`;
       bonusInfoDisplay.title = `${state.bonus.name} / 合計${state.bonus.totalPayout.toLocaleString("ja-JP")}枚`;
     } else if (state.pendingBonus) {
       bonusInfoDisplay.textContent = `確定 ${state.pendingBonus.rateLabel}`;
@@ -678,7 +681,9 @@ function renderStatus() {
       bonusInfoDisplay.title = "";
     }
   }
-  if (state.spinning && state.currentResult) {
+  if (state.bonusBattleAnimating) {
+    resultDisplay.textContent = "勝負中";
+  } else if (state.spinning && state.currentResult) {
     resultDisplay.textContent = "抽選中";
   } else if (state.lastPayout > 0) {
     resultDisplay.textContent = `+${state.lastPayout}`;
@@ -793,6 +798,7 @@ function renderGameToText() {
     currentResult: state.currentResult ? state.currentResult.id : null,
     effectTier: state.effectPlan ? state.effectPlan.tier : null,
     lastPayout: state.lastPayout,
+    bonusBattleAnimating: state.bonusBattleAnimating,
     pendingBonus: state.pendingBonus,
     bonus: state.bonus,
     ownedItems: state.ownedItems,
@@ -992,7 +998,8 @@ function loadDebugValues() {
 function renderControls() {
   const readyForBonus = state.mode === "bonusReady" && state.phase !== "battleBonus";
   const canSpinNormal = state.phase === "battleBonus" || state.coins >= fixedBet;
-  spinButton.disabled = state.spinning || readyForBonus || !canSpinNormal;
+  spinButton.disabled = state.spinning || state.bonusBattleAnimating || readyForBonus || !canSpinNormal;
+  spinButton.textContent = state.phase === "battleBonus" ? "勝負" : "回す";
   if (bonusStartButton) {
     bonusStartButton.hidden = !readyForBonus;
     bonusStartButton.disabled = !readyForBonus;
@@ -1117,32 +1124,70 @@ function startBattleBonus() {
 }
 
 function runBattleBonusSet() {
-  if (state.spinning || state.phase !== "battleBonus" || !state.bonus) return;
+  if (state.spinning || state.bonusBattleAnimating || state.phase !== "battleBonus" || !state.bonus) return;
+  state.bonusBattleAnimating = true;
   state.totalGames += 1;
   const payout = drawBonusSetPayout(state.bonus);
-  state.bonus.set += 1;
+  const nextSet = state.bonus.set + 1;
+  const continued = Math.random() < state.bonus.rate;
+  const battleTier = state.bonus.effect;
+  const plan = buildEffectPlan(getEffectResult(battleTier));
+  state.pendingRole = { id: "battleBonus", name: `${nextSet}SET バトル` };
+  state.currentResult = getEffectResult(battleTier, { name: state.bonus.name, lamp: "勝負" });
+  state.effectPlan = plan;
+  setEffectClass(plan.tier);
+  setEffectVisual(plan);
+  setTopEffectText("BATTLE");
+  setEffectScreenContent({
+    label: `${nextSet}SET`,
+    title: "信念バトル",
+    message: `継続率${state.bonus.rateLabel}。相手の圧を受け止めろ。`,
+  });
+  burstStreamComments(plan.tier, 5);
+  saveGameState();
+  renderControls();
+
+  window.setTimeout(() => {
+    if (!state.bonusBattleAnimating || state.phase !== "battleBonus" || !state.bonus) return;
+    setTopEffectText("激突");
+    setEffectScreenContent({
+      label: "激突",
+      title: "信念を通せ",
+      message: "液晶が揺れる。ここで押し切れば継続。",
+    });
+    burstStreamComments(plan.tier, 4);
+  }, 520);
+
+  window.setTimeout(() => {
+    resolveBattleBonusSet({ continued, payout, nextSet });
+  }, 1160);
+}
+
+function resolveBattleBonusSet({ continued, payout, nextSet }) {
+  if (!state.bonusBattleAnimating || state.phase !== "battleBonus" || !state.bonus) return;
+  state.bonusBattleAnimating = false;
+  state.bonus.set = nextSet;
   state.bonus.totalPayout += payout;
   state.coins += payout;
   state.lastPayout = payout;
   state.pendingRole = { id: "battleBonus", name: `${state.bonus.set}SET` };
 
-  const continued = Math.random() < state.bonus.rate;
-  const effectId = state.bonus.effect;
-  const plan = buildEffectPlan(getEffectResult(effectId));
+  const resultEffectId = continued ? state.bonus.effect : "lose";
+  const resultPlan = buildEffectPlan(getEffectResult(resultEffectId));
   const scene = {
-    label: continued ? "継続" : "終了",
-    title: `${state.bonus.name} ${state.bonus.set}SET`,
+    label: continued ? "勝利" : "敗北",
+    title: continued ? `${state.bonus.name} 継続` : "バトル終了",
     message: continued
-      ? `継続成功。合計${state.bonus.totalPayout.toLocaleString("ja-JP")}枚。`
-      : `バトル終了。合計${state.bonus.totalPayout.toLocaleString("ja-JP")}枚。`,
+      ? `勝利。合計${state.bonus.totalPayout.toLocaleString("ja-JP")}枚。次セットへ。`
+      : `敗北。合計${state.bonus.totalPayout.toLocaleString("ja-JP")}枚で終了。`,
   };
-  state.currentResult = getEffectResult(effectId, { name: state.bonus.name, lamp: continued ? "継続" : "終了" });
-  state.effectPlan = plan;
-  setEffectClass(plan.tier);
-  setEffectVisual(plan, true);
+  state.currentResult = getEffectResult(resultEffectId, { name: state.bonus.name, lamp: continued ? "継続" : "終了" });
+  state.effectPlan = resultPlan;
+  setEffectClass(resultPlan.tier);
+  setEffectVisual(resultPlan, true);
   setTopEffectText(continued ? "継続" : "終了");
   setEffectScreenContent(scene, payout);
-  burstStreamComments(plan.tier, continued ? 6 : 4);
+  burstStreamComments(resultPlan.tier, continued ? 6 : 4);
 
   if (!continued) {
     const endedBonus = state.bonus;
