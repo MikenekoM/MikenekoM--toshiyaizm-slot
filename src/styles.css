@@ -1388,13 +1388,13 @@ button {
 }
 
 .debug-panel {
-  position: absolute;
+  position: fixed;
   right: 24px;
   top: 24px;
   z-index: 30;
   display: none;
   width: 340px;
-  max-height: 900px;
+  max-height: calc(100vh - 158px);
   overflow: hidden;
   border: 1px solid rgba(255, 225, 138, 0.7);
   border-radius: 8px;
@@ -1405,10 +1405,12 @@ button {
 }
 
 .mock-stage.debug-mode .debug-panel {
-  display: block;
+  display: flex;
+  flex-direction: column;
 }
 
 .debug-panel__head {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: 8px;
@@ -1418,6 +1420,7 @@ button {
 }
 
 .debug-tabs {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
   border-bottom: 1px solid rgba(255, 225, 138, 0.24);
@@ -1452,7 +1455,8 @@ button {
 }
 
 .debug-panel__body {
-  max-height: 660px;
+  flex: 1 1 auto;
+  max-height: none;
   overflow: auto;
   padding: 10px;
 }
@@ -1508,7 +1512,7 @@ button {
 }
 
 .debug-scenario-panel {
-  max-height: 574px;
+  max-height: none;
 }
 
 .debug-scenario-group {
@@ -1586,6 +1590,7 @@ button {
 }
 
 .debug-state {
+  flex: 0 0 auto;
   margin: 0 10px 10px;
   padding: 10px;
   border: 1px solid rgba(255, 225, 138, 0.28);
@@ -1633,9 +1638,10 @@ button {
 }
 
 #debugOutput {
+  flex: 0 0 auto;
   display: block;
   width: calc(100% - 20px);
-  height: 120px;
+  height: 104px;
   margin: 0 10px 10px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 5px;

@@ -68,7 +68,6 @@ await page.evaluate(({ key, value }) => {
 await page.reload();
 await page.click("#modeToggle");
 await page.click("#debugToggle");
-await page.click('[data-debug-tab="state"]');
 await page.screenshot({ path: path.join(root, "tmp", "debug-state-panel.png"), fullPage: false });
 
 const stateTabVisible = await page.locator("#debugScenarioControls").isVisible();

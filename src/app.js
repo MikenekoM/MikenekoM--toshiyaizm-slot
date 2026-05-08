@@ -1808,6 +1808,7 @@ debugToggle.addEventListener("click", () => {
   debugToggle.setAttribute("aria-pressed", String(isDebugMode));
   if (isDebugMode) {
     setMode(true);
+    setDebugTab("state");
   }
 });
 
