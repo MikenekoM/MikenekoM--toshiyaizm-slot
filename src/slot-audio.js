@@ -42,6 +42,10 @@
       bonusStart: () => tone({ frequency: 523, duration: 0.16, gain: 0.055, type: "triangle", slide: 260 }),
       battleImpact: () => tone({ frequency: 96, duration: 0.18, gain: 0.07, type: "sawtooth", slide: -45 }),
       continue: () => tone({ frequency: 659, duration: 0.18, gain: 0.055, type: "triangle", slide: 330 }),
+      revival: () => {
+        tone({ frequency: 120, duration: 0.16, gain: 0.04, type: "triangle", slide: -45 });
+        global.setTimeout(() => tone({ frequency: 740, duration: 0.18, gain: 0.055, type: "triangle", slide: 280 }), 130);
+      },
       end: () => tone({ frequency: 140, duration: 0.3, gain: 0.05, type: "triangle", slide: -80 }),
       milestone: () => tone({ frequency: 880, duration: 0.26, gain: 0.055, type: "triangle", slide: 320 }),
     };

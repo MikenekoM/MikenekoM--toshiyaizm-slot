@@ -42,7 +42,10 @@ const afterStart = await page.evaluate(() => window.render_game_to_text());
 await page.keyboard.press("Space");
 const duringBattle = await page.evaluate(() => window.render_game_to_text());
 await page.screenshot({ path: path.join(root, "tmp", "bonus-battle-during.png"), fullPage: false });
-await page.waitForTimeout(1300);
+await page.waitForFunction(() => {
+  const state = JSON.parse(window.render_game_to_text());
+  return state.bonusBattleAnimating === false && state.battleStage !== "faceoff" && state.battleStage !== "attack" && state.battleStage !== "hold";
+}, null, { timeout: 6000 });
 const afterSet = await page.evaluate(() => window.render_game_to_text());
 await page.screenshot({ path: path.join(root, "tmp", "bonus-smoke-test.png"), fullPage: false });
 await browser.close();

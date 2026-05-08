@@ -51,8 +51,8 @@ const bonusReady = await loadSavedState("bonus-ready", {
     id: "upper",
     name: "上位バトルボーナス",
     effect: "premium",
-    rate: 0.88,
-    rateLabel: "88%",
+    rate: 0.89,
+    rateLabel: "89%",
     set: 0,
     totalPayout: 0,
   },
@@ -78,7 +78,7 @@ const battleBonus = await loadSavedState("battle-bonus", {
 await browser.close();
 
 const failed = [];
-if (!bonusReady.effectText.includes("ボーナス確定") || !bonusReady.effectText.includes("88%")) {
+if (!bonusReady.effectText.includes("ボーナス確定") || !bonusReady.effectText.includes("89%")) {
   failed.push("bonusReady effect text did not show confirmed bonus details");
 }
 if (!battleBonus.effectText.includes("再開") || !battleBonus.effectText.includes("2SET")) {

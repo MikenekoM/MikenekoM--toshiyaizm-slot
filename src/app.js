@@ -127,6 +127,7 @@ const state = {
   bonusBattleAnimating: false,
   battleStage: "idle",
   battleOutcome: null,
+  lastBattle: null,
   lastEngineEvent: null,
   lastSlip: [0, 0, 0],
   lastRandomSeed: null,
@@ -155,9 +156,9 @@ const gameRules = {
     { id: "blank", name: "ハズレ", payout: 0, weight: 437, effect: "lose" },
     { id: "replay", name: "Tリプレイ", payout: 0, weight: 220, effect: "lose" },
     { id: "bell", name: "ベル", payout: 8, weight: 230, effect: "normal" },
-    { id: "weakCherry", name: "弱チェリー", payout: 2, weight: 45, rare: true, effect: "normal" },
+    { id: "weakCherry", name: "角チェリー", payout: 2, weight: 45, rare: true, effect: "normal" },
     { id: "watermelon", name: "トシヤチャンス", payout: 6, weight: 28, rare: true, effect: "normal" },
-    { id: "strongCherry", name: "強チェリー", payout: 2, weight: 12, rare: true, effect: "rush" },
+    { id: "strongCherry", name: "中段チェリー", payout: 2, weight: 12, rare: true, effect: "rush" },
     { id: "chance", name: "ISM目", payout: 1, weight: 8, rare: true, effect: "rush" },
   ],
   modeTransitions: {
@@ -191,7 +192,7 @@ const gameRules = {
     { value: 0.66, label: "66%", weight: 55 },
     { value: 0.79, label: "79%", weight: 28 },
     { value: 0.84, label: "84%", weight: 12 },
-    { value: 0.88, label: "88%", weight: 5 },
+    { value: 0.89, label: "89%", weight: 5 },
   ],
   bonusTypes: [
     { id: "normal", name: "バトルボーナス", weight: 82, effect: "rush", payoutMin: 120, payoutMax: 160 },
@@ -696,13 +697,18 @@ function renderStatus() {
 function renderDebugState() {
   if (!debugState) return;
   const bonus = state.bonus || state.pendingBonus;
+  const battleText = state.lastBattle
+    ? `${state.battleStage}/${state.lastBattle.attackName || "-"}:${state.lastBattle.defenseName || "-"}`
+    : `${state.battleStage}${state.battleOutcome ? `/${state.battleOutcome}` : ""}`;
   const lines = [
     `mode: ${state.phase === "battleBonus" ? "BB中" : modeLabels[state.mode] || state.mode}`,
     `pre: ${state.preBonusRemaining}`,
     `role: ${state.pendingRole?.id || "-"}`,
     `slip: ${state.lastSlip.join("/")}`,
-    `battle: ${state.battleStage}${state.battleOutcome ? `/${state.battleOutcome}` : ""}`,
+    `battle: ${battleText}`,
     `rate: ${bonus?.rateLabel || "-"}`,
+    `symbol: ${bonus?.entrySymbolName || "-"}`,
+    `aura: ${bonus?.aura || "-"}`,
     `seed: ${state.lastRandomSeed || "-"}`,
   ];
   debugState.innerHTML = `
@@ -775,6 +781,7 @@ function applySaveData(data, options = {}) {
   state.lastPayout = 0;
   state.battleStage = "idle";
   state.battleOutcome = null;
+  state.lastBattle = null;
   state.bonusBattleAnimating = false;
   state.lastEngineEvent = null;
   state.lastSlip = [0, 0, 0];
@@ -820,6 +827,7 @@ function renderGameToText() {
     bonusBattleAnimating: state.bonusBattleAnimating,
     battleStage: state.battleStage,
     battleOutcome: state.battleOutcome,
+    lastBattle: state.lastBattle,
     lastSlip: state.lastSlip,
     lastEngineEvent: state.lastEngineEvent ? {
       effectId: state.lastEngineEvent.effectId,
@@ -1124,6 +1132,7 @@ function startBattleBonus() {
   state.gamesSinceBonus = 0;
   state.battleStage = "idle";
   state.battleOutcome = null;
+  state.lastBattle = null;
   state.pendingRole = null;
   state.pendingPayout = 0;
   state.lastPayout = 0;
@@ -1131,15 +1140,16 @@ function startBattleBonus() {
   state.effectPlan = buildEffectPlan(state.currentResult);
   state.effectPlan.intro = {
     label: "開始",
-    title: state.bonus.name,
-    message: `継続率${state.bonus.rateLabel}。セットごとに信念を通す。`,
+    title: `${state.bonus.entrySymbolName || state.bonus.name}`,
+    message: `継続率${state.bonus.rateLabel}。${state.bonus.aura || "白"}オーラでバトルへ。`,
   };
   state.effectPlan.final = state.effectPlan.intro;
   setEffectClass(state.effectPlan.tier);
   setEffectVisual(state.effectPlan);
   setTopEffectText(state.bonus.rateLabel);
   setEffectScreenContent(state.effectPlan.intro);
-  burstStreamComments(state.effectPlan.tier, 6);
+  clearStreamComments();
+  burstStreamComments(state.effectPlan.tier, 3);
   saveGameState();
   renderControls();
 }
@@ -1156,8 +1166,17 @@ function runBattleBonusSet() {
   const context = {
     ...battle,
     bonusName: state.bonus.name,
+    aura: state.bonus.aura,
     effectTier: battleTier === "premium" ? "premium" : "hot",
     totalPayout: state.bonus.totalPayout,
+  };
+  state.lastBattle = {
+    attack: battle.attack?.id || null,
+    attackName: battle.attack?.name || null,
+    attackDanger: battle.attack?.danger ?? null,
+    defense: battle.defense?.id || null,
+    defenseName: battle.defense?.name || null,
+    holdMs: battle.holdMs,
   };
   const faceoff = slotEffects.getBattleScene("faceoff", context);
   const plan = buildBattleVisualPlan(faceoff, battleTier);
@@ -1168,7 +1187,8 @@ function runBattleBonusSet() {
   setEffectVisual(plan);
   setTopEffectText(faceoff.top);
   setEffectScreenContent(faceoff);
-  burstStreamComments(plan.tier, 5);
+  clearStreamComments();
+  burstStreamComments(plan.tier, 3);
   saveGameState();
   renderControls();
 
@@ -1183,9 +1203,10 @@ function runBattleBonusSet() {
     setTopEffectText(attack.top);
     setEffectScreenContent(attack);
     slotAudio?.play("battleImpact");
-    burstStreamComments(attackPlan.tier, 4);
+    clearStreamComments();
+    burstStreamComments(attackPlan.tier, 2);
     renderControls();
-  }, 520);
+  }, 720);
 
   scheduleGameTimer(() => {
     if (!state.bonusBattleAnimating || state.phase !== "battleBonus" || !state.bonus) return;
@@ -1197,16 +1218,17 @@ function runBattleBonusSet() {
     setEffectVisual(holdPlan);
     setTopEffectText(hold.top);
     setEffectScreenContent(hold);
-    burstStreamComments(holdPlan.tier, 4);
+    clearStreamComments();
+    burstStreamComments(holdPlan.tier, 1);
     renderControls();
-  }, 980);
+  }, 1380);
 
   scheduleGameTimer(() => {
     resolveBattleBonusSet(battle);
-  }, 1540);
+  }, 1520 + Math.max(900, Number(battle.holdMs || 1400)));
 }
 
-function resolveBattleBonusSet({ continued, payout, nextSet, milestoneReached }) {
+function resolveBattleBonusSet({ continued, payout, nextSet, milestoneReached, attack, defense }) {
   if (!state.bonusBattleAnimating || state.phase !== "battleBonus" || !state.bonus) return;
   state.bonusBattleAnimating = false;
   state.bonus.set = nextSet;
@@ -1228,6 +1250,8 @@ function resolveBattleBonusSet({ continued, payout, nextSet, milestoneReached })
     bonusName: state.bonus.name,
     totalPayout: state.bonus.totalPayout,
     effectTier: state.bonus.effect === "premium" ? "premium" : "hot",
+    attack,
+    defense,
   });
   const resultPlan = buildBattleVisualPlan(scene, resultEffectId);
   state.currentResult = getEffectResult(resultEffectId, { name: state.bonus.name, lamp: continued ? "継続" : "終了" });
@@ -1236,8 +1260,16 @@ function resolveBattleBonusSet({ continued, payout, nextSet, milestoneReached })
   setEffectVisual(resultPlan, true);
   setTopEffectText(scene.top);
   setEffectScreenContent(scene, payout);
-  burstStreamComments(resultPlan.tier, continued ? 6 : 4);
-  slotAudio?.play(milestoneReached ? "milestone" : (continued ? "continue" : "end"));
+  clearStreamComments();
+  burstStreamComments(resultPlan.tier, continued ? 3 : 2);
+  const soundId = milestoneReached
+    ? "milestone"
+    : continued && defense?.id === "revival"
+      ? "revival"
+      : continued
+        ? "continue"
+        : "end";
+  slotAudio?.play(soundId);
 
   if (!continued) {
     const endedBonus = state.bonus;

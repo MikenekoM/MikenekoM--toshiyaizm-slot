@@ -82,8 +82,8 @@ await load({
     id: "upper",
     name: "上位バトルボーナス",
     effect: "premium",
-    rate: 0.88,
-    rateLabel: "88%",
+    rate: 0.89,
+    rateLabel: "89%",
     set: 19,
     totalPayout: 2600,
     milestoneReached: false,
@@ -92,9 +92,9 @@ await load({
 await page.evaluate(() => window.__toshiyaSlotTest.setRandomSequence([0.5, 0.1, 0, 0, 0, 0], "visual-battle"));
 await page.keyboard.press("Space");
 rows.push(await capture("04-battle-faceoff"));
-await page.evaluate(() => window.advanceTime(1100));
+await page.evaluate(() => window.advanceTime(1500));
 rows.push(await capture("05-battle-hold"));
-await page.evaluate(() => window.advanceTime(600));
+await page.evaluate(() => window.advanceTime(1600));
 rows.push(await capture("06-milestone"));
 
 await browser.close();

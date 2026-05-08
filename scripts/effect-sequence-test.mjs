@@ -77,11 +77,11 @@ async function battleScenario(name, bonus, sequence) {
   await page.evaluate((values) => window.__toshiyaSlotTest.setRandomSequence(values, "battle-sequence"), sequence);
   await page.keyboard.press("Space");
   const faceoff = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
-  await page.evaluate(() => window.advanceTime(600));
+  await page.evaluate(() => window.advanceTime(800));
   const attack = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
-  await page.evaluate(() => window.advanceTime(500));
+  await page.evaluate(() => window.advanceTime(700));
   const hold = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
-  await page.evaluate(() => window.advanceTime(600));
+  await page.evaluate(() => window.advanceTime(1500));
   const resolved = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
   await page.screenshot({ path: path.join(root, "tmp", `effect-sequence-${name}.png`), fullPage: false });
   return { faceoff, attack, hold, resolved };
@@ -119,8 +119,8 @@ const scenarios = {
     id: "upper",
     name: "上位バトルボーナス",
     effect: "premium",
-    rate: 0.88,
-    rateLabel: "88%",
+    rate: 0.89,
+    rateLabel: "89%",
     set: 19,
     totalPayout: 2600,
     milestoneReached: false,
@@ -137,6 +137,8 @@ if (scenarios.ready.result.internalMode !== "bonusReady" || !scenarios.ready.res
 if (scenarios.battleContinue.faceoff.battleStage !== "faceoff") failed.push("battle faceoff missing");
 if (scenarios.battleContinue.attack.battleStage !== "attack") failed.push("battle attack missing");
 if (scenarios.battleContinue.hold.battleStage !== "hold") failed.push("battle hold missing");
+if (!scenarios.battleContinue.attack.lastBattle?.attack) failed.push("battle attack pattern missing");
+if (!scenarios.battleContinue.resolved.lastBattle?.defense) failed.push("battle defense pattern missing");
 if (scenarios.battleContinue.resolved.battleOutcome !== "continued") failed.push("battle continue failed");
 if (scenarios.battleLose.resolved.phase !== "normal" || scenarios.battleLose.resolved.battleOutcome !== "ended") failed.push("battle lose failed");
 if (scenarios.milestone.resolved.battleStage !== "continue" || !scenarios.milestone.resolved.bonus?.milestoneReached) failed.push("milestone failed");

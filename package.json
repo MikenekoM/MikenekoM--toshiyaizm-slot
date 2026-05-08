@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node scripts/build-dist.mjs",
     "test:core": "node scripts/slot-core-simulation-test.mjs",
+    "test:advice": "node scripts/slot-hokuto-advice-score-test.mjs",
     "test:smoke": "node scripts/smoke-test.mjs",
     "test:bonus": "node scripts/bonus-smoke-test.mjs",
     "test:roles": "node scripts/role-alignment-test.mjs",

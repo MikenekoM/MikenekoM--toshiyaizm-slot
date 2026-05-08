@@ -67,7 +67,7 @@ const bonusStats = {
   "66": simulateBonus(0.66, 66),
   "79": simulateBonus(0.79, 79),
   "84": simulateBonus(0.84, 84),
-  "88": simulateBonus(0.88, 88),
+  "89": simulateBonus(0.89, 89),
 };
 
 const failed = [];
@@ -86,11 +86,11 @@ if (preBonusEntries < 100 || bonusReadyHits < 80) {
 
 if (!(bonusStats["66"].averageSets < bonusStats["79"].averageSets
   && bonusStats["79"].averageSets < bonusStats["84"].averageSets
-  && bonusStats["84"].averageSets < bonusStats["88"].averageSets)) {
+  && bonusStats["84"].averageSets < bonusStats["89"].averageSets)) {
   failed.push("bonus average sets are not ordered by continuation rate");
 }
 
-if (bonusStats["88"].reached20Rate <= bonusStats["66"].reached20Rate) {
+if (bonusStats["89"].reached20Rate <= bonusStats["66"].reached20Rate) {
   failed.push("20SET reach rate does not increase for high continuation");
 }
 

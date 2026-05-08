@@ -16,10 +16,11 @@
 - 通常時は小役抽選、内部モード移行、前兆、ボーナス確定を処理します。
 - 内部モードは `low / normal / high / preBonus / bonusReady`。
 - ボーナス中は `battleBonus` としてセット継続型で進みます。
-- 継続率は 66% / 79% / 84% / 88%。
+- 継続率は 66% / 79% / 84% / 89%。
+- BB開始時に `赤ISM揃い / 金ISM揃い / 信念図柄揃い` とオーラ色を決め、継続率示唆に使います。
 - 根幹ロジックは `src/slot-rules.js`、`src/slot-engine.js`、`src/slot-effects.js` に分離し、テスト時は `window.__toshiyaSlotTest` と `window.advanceTime(ms)` で強制シナリオ再生できます。
-- ボーナス中は「対峙 → 敵攻撃 → 溜め → 継続/終了」の段階表示で、20SET到達時は信念到達演出を出します。
-- 弱チェリーは左リール上段または下段、強チェリーは左リール中段で見せます。
+- ボーナス中は「対峙 → 攻撃種別 → 長めの溜め → 回避/反撃/耐える/復活/終了」の段階表示で、20SET到達時は信念到達演出を出します。
+- 角チェリーは左リール上段または下段、中段チェリーは左リール中段で見せます。
 - 全体モードは説明書代わりの全体シート、プレイモードは実際に遊ぶ画面です。
 
 詳しい仕様は [docs/game-rules.md](docs/game-rules.md) を参照してください。
@@ -75,6 +76,7 @@ node scripts/build-dist.mjs
 ```powershell
 node scripts/smoke-test.mjs
 node scripts/slot-core-simulation-test.mjs
+node scripts/slot-hokuto-advice-score-test.mjs
 node scripts/bonus-smoke-test.mjs
 node scripts/role-alignment-test.mjs
 node scripts/effect-state-test.mjs

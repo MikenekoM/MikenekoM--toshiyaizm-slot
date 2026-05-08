@@ -140,6 +140,8 @@
       title: tone === "quiet" ? "静かな一回転" : role.name,
       message: tone === "quiet"
         ? "90%は静かに流れる。小さな違和感だけを待つ。"
+        : tone === "preBonusDeep"
+          ? "低音が深くなる。前兆の終わりが近い。"
         : "停止ごとに期待感を確認する。",
     };
     decorated.stops = [
@@ -161,46 +163,67 @@
   function getBattleScene(stage, context) {
     const setLabel = `${context.nextSet}SET`;
     const rateText = `継続率${context.rateLabel}`;
+    const attackName = context.attack?.name || "敵攻撃";
+    const defenseName = context.defense?.name || "判定";
+    const dangerText = context.attack?.danger >= 3
+      ? "最危険"
+      : context.attack?.danger >= 2
+        ? "危険"
+        : context.attack?.danger === 1
+          ? "まだ浅い"
+          : "先制好機";
+    const outcomeLine = {
+      toshiyaFirst: "先制で押し切る。継続の気配が濃い。",
+      dodge: "紙一重でかわす。次セットへ。",
+      counter: "反撃が刺さる。継続。",
+      stand: "倒れない。怖さを残して継続。",
+      revival: "沈黙のあとに立ち上がる。復活継続。",
+      collapse: "立ち上がれない。通常へ戻る。",
+    }[context.defense?.id] || `${defenseName}で判定。`;
     const scenes = {
       faceoff: {
         top: "BATTLE",
         label: setLabel,
         title: "信念バトル",
-        message: `${rateText}。敵の圧がゆっくり近づく。`,
+        message: `${rateText}。${context.aura ? `${context.aura}の気配。` : ""}敵の圧がゆっくり近づく。`,
         assetGroup: "faceoff",
         tier: context.effectTier,
       },
       attack: {
         top: "攻撃",
-        label: "敵攻撃",
-        title: "受けるか、避けるか",
-        message: "強い一撃。ここで終わるかもしれない間を作る。",
+        label: dangerText,
+        title: attackName,
+        message: context.attack?.id === "toshiyaFirst"
+          ? "先に踏み込む。ここは押し切りたい。"
+          : `${attackName}を受ける。終わるかもしれない間を作る。`,
         assetGroup: "attack",
         tier: context.effectTier,
       },
       hold: {
         top: "溜め",
-        label: "間",
+        label: context.attack?.danger >= 3 ? "長い間" : "間",
         title: "まだ分からない",
-        message: "一瞬止まる。反撃なら継続、倒れれば終了。",
+        message: context.attack?.id === "toshiyaFirst"
+          ? "押し切れるか。勝利音まで待つ。"
+          : "画面が止まる。避けるか、耐えるか、倒れるか。",
         assetGroup: "hold",
         tier: context.effectTier,
       },
       continue: {
         top: context.milestoneReached ? "信念到達" : "継続",
-        label: context.milestoneReached ? "到達" : "勝利",
+        label: context.milestoneReached ? "到達" : defenseName,
         title: context.milestoneReached ? "信念到達" : `${context.bonusName} 継続`,
         message: context.milestoneReached
           ? `20SET到達。合計${context.totalPayout.toLocaleString("ja-JP")}枚。まだ終わらない。`
-          : `勝利。合計${context.totalPayout.toLocaleString("ja-JP")}枚。次セットへ。`,
+          : `${outcomeLine} 合計${context.totalPayout.toLocaleString("ja-JP")}枚。次セットへ。`,
         assetGroup: context.milestoneReached ? "milestone" : "continue",
         tier: context.milestoneReached ? "premium" : context.effectTier,
       },
       lose: {
         top: "終了",
-        label: "敗北",
+        label: attackName,
         title: "バトル終了",
-        message: `被弾。合計${context.totalPayout.toLocaleString("ja-JP")}枚で終了。`,
+        message: `${outcomeLine} 合計${context.totalPayout.toLocaleString("ja-JP")}枚で終了。`,
         assetGroup: "lose",
         tier: "lose",
       },
