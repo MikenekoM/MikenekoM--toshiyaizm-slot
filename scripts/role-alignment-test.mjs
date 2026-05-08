@@ -6,6 +6,7 @@ const { chromium } = require("C:/Users/piros/.cache/codex-runtimes/codex-primary
 
 const root = path.resolve("E:/Codex_CLI/toshiyaizm-slot");
 const url = `file:///${root.replaceAll("\\", "/")}/index.html`;
+const saveKey = "toshiyaizm-game-state-v2";
 
 const roleRolls = {
   replay: 0.55,
@@ -26,16 +27,30 @@ page.on("console", (msg) => {
   if (msg.type() === "error") errors.push(msg.text());
 });
 
-await page.goto(url);
-await page.evaluate(() => localStorage.clear());
-await page.reload();
-await page.click("#modeToggle");
-
 const states = {};
 for (const [role, roll] of Object.entries(roleRolls)) {
+  await page.goto(url);
+  await page.evaluate(({ key }) => {
+    localStorage.clear();
+    localStorage.setItem(key, JSON.stringify({
+      version: 3,
+      coins: 300,
+      bet: 3,
+      totalGames: 0,
+      gamesSinceBonus: 0,
+      mode: "normal",
+      phase: "normal",
+      preBonusRemaining: 0,
+      pendingBonus: null,
+      bonus: null,
+      lastBonusSummary: null,
+      ownedItems: [],
+    }));
+  }, { key: saveKey });
+  await page.reload();
+  await page.click("#modeToggle");
   await page.evaluate((value) => {
-    const sequence = [value, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    Math.random = () => (sequence.length ? sequence.shift() : 0);
+    window.__toshiyaSlotTest.setRandomSequence([value, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "role-align");
   }, roll);
   await page.keyboard.press("Space");
   await page.keyboard.press("KeyZ");
@@ -46,4 +61,12 @@ for (const [role, roll] of Object.entries(roleRolls)) {
 }
 
 await browser.close();
-console.log(JSON.stringify({ errors, states }, null, 2));
+
+const failed = [];
+for (const [role, stateText] of Object.entries(states)) {
+  const state = JSON.parse(stateText);
+  if (state.pendingRole !== role) failed.push(`${role}: ${state.pendingRole}`);
+}
+
+console.log(JSON.stringify({ errors, failed, states }, null, 2));
+if (errors.length || failed.length) process.exitCode = 1;

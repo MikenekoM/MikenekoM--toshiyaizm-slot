@@ -17,6 +17,8 @@
 - 内部モードは `low / normal / high / preBonus / bonusReady`。
 - ボーナス中は `battleBonus` としてセット継続型で進みます。
 - 継続率は 66% / 79% / 84% / 88%。
+- 根幹ロジックは `src/slot-rules.js`、`src/slot-engine.js`、`src/slot-effects.js` に分離し、テスト時は `window.__toshiyaSlotTest` と `window.advanceTime(ms)` で強制シナリオ再生できます。
+- ボーナス中は「対峙 → 敵攻撃 → 溜め → 継続/終了」の段階表示で、20SET到達時は信念到達演出を出します。
 - 弱チェリーは左リール上段または下段、強チェリーは左リール中段で見せます。
 - 全体モードは説明書代わりの全体シート、プレイモードは実際に遊ぶ画面です。
 
@@ -72,10 +74,13 @@ node scripts/build-dist.mjs
 
 ```powershell
 node scripts/smoke-test.mjs
+node scripts/slot-core-simulation-test.mjs
 node scripts/bonus-smoke-test.mjs
 node scripts/role-alignment-test.mjs
 node scripts/effect-state-test.mjs
 node scripts/effect-transition-test.mjs
+node scripts/effect-sequence-test.mjs
+node scripts/visual-playtest-report.mjs
 node scripts/build-dist.mjs
 node scripts/dist-smoke-test.mjs
 ```

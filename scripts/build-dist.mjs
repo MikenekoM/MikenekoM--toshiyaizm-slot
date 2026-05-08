@@ -1,12 +1,17 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = path.resolve("E:/Codex_CLI/toshiyaizm-slot");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dist = path.join(root, "dist");
 
 const requiredFiles = [
   "index.html",
   "src/styles.css",
+  "src/slot-rules.js",
+  "src/slot-engine.js",
+  "src/slot-effects.js",
+  "src/slot-audio.js",
   "src/app.js",
   "src/aikotoba.js",
   "src/comment-data.js",

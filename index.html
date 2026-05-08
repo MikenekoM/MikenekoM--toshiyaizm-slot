@@ -256,6 +256,7 @@
           <span>プレイ</span>
         </div>
 
+        <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="false">音</button>
         <button class="debug-toggle" id="debugToggle" type="button" aria-pressed="false">調整</button>
         <aside class="debug-panel" id="debugPanel" aria-label="調整パネル">
           <div class="debug-panel__head">
@@ -264,10 +265,15 @@
             <button type="button" id="debugReset">リセット</button>
           </div>
           <div class="debug-panel__body" id="debugControls"></div>
+          <div class="debug-state" id="debugState" aria-label="内部状態"></div>
           <textarea id="debugOutput" readonly aria-label="調整結果"></textarea>
         </aside>
       </main>
     </div>
+    <script src="./src/slot-rules.js"></script>
+    <script src="./src/slot-engine.js"></script>
+    <script src="./src/slot-effects.js"></script>
+    <script src="./src/slot-audio.js"></script>
     <script src="./src/shop-data.js"></script>
     <script src="./src/aikotoba.js"></script>
     <script src="./src/comment-data.js"></script>

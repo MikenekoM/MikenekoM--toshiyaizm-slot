@@ -36,6 +36,13 @@ const debugControls = document.querySelector("#debugControls");
 const debugCopy = document.querySelector("#debugCopy");
 const debugReset = document.querySelector("#debugReset");
 const debugOutput = document.querySelector("#debugOutput");
+const debugState = document.querySelector("#debugState");
+const soundToggle = document.querySelector("#soundToggle");
+
+const slotRules = window.ToshiyaSlotRules;
+const slotEngine = window.ToshiyaSlotEngine;
+const slotEffects = window.ToshiyaEffectSequences;
+const slotAudio = window.ToshiyaSlotAudio?.create();
 
 const debugDefaults = {
   "--play-machine-w": 1536,
@@ -118,6 +125,12 @@ const state = {
   effectPlan: null,
   lastPayout: 0,
   bonusBattleAnimating: false,
+  battleStage: "idle",
+  battleOutcome: null,
+  lastEngineEvent: null,
+  lastSlip: [0, 0, 0],
+  lastRandomSeed: null,
+  testMode: false,
   pendingBonus: null,
   bonus: null,
   lastBonusSummary: null,
@@ -203,6 +216,16 @@ const effectClassNames = ["effect-normal", "effect-hot", "effect-premium", "effe
 const commentProfiles = window.ToshiyaCommentProfiles || {};
 const commentTierCounts = { normal: 3, hot: 5, premium: 7, lose: 3 };
 let commentTimers = [];
+let testRandomQueue = [];
+let virtualTimeEnabled = false;
+let virtualNow = 0;
+let virtualTimerId = 1;
+let virtualTimers = [];
+
+function nextRandom() {
+  if (testRandomQueue.length) return Number(testRandomQueue.shift());
+  return Math.random();
+}
 
 const stopPatterns = {
   premium: [
@@ -397,136 +420,65 @@ function drawResult() {
 }
 
 function pickWeighted(items) {
-  const totalWeight = items.reduce((sum, item) => sum + Number(item.weight || 0), 0);
-  let roll = Math.random() * totalWeight;
-  for (const item of items) {
-    roll -= Number(item.weight || 0);
-    if (roll <= 0) return item;
-  }
-  return items.at(-1);
+  return slotEngine.pickWeighted(items, nextRandom);
 }
 
 function pickWeightedMap(weightMap) {
-  const items = Object.entries(weightMap).map(([value, weight]) => ({ value, weight }));
-  return pickWeighted(items)?.value;
+  return slotEngine.pickWeightedMap(weightMap, nextRandom);
 }
 
 function drawRole() {
-  return pickWeighted(gameRules.roles);
+  return slotEngine.drawRole(nextRandom);
 }
 
 function drawPreBonusGames() {
-  return pickWeighted(gameRules.preBonusGames)?.value || 4;
+  return slotEngine.drawPreBonusGames(nextRandom);
 }
 
 function getEffectResult(effectId, overrides = {}) {
-  const base = resultTable.find((result) => result.id === effectId) || resultTable.at(-1);
+  const source = slotEffects.resultTable || resultTable;
+  const base = source.find((result) => result.id === effectId) || source.at(-1);
   return { ...base, ...overrides, payout: 0 };
 }
 
 function getStopsForResult(result) {
   const patterns = stopPatterns[result?.id] || stopPatterns.lose;
-  return patterns[Math.floor(Math.random() * patterns.length)].slice();
+  return patterns[Math.floor(nextRandom() * patterns.length)].slice();
 }
 
 function getStopsForRole(role) {
-  const patterns = roleStopPatterns[role?.id] || stopPatterns.lose;
-  return patterns[Math.floor(Math.random() * patterns.length)].slice();
+  const patterns = (slotRules.roleStopPatterns || roleStopPatterns)[role?.id] || slotRules.stopPatterns.lose;
+  return patterns[Math.floor(nextRandom() * patterns.length)].slice();
 }
 
 function processModeAfterRole(role) {
-  const before = state.mode;
-  const note = {
-    before,
-    after: before,
-    enteredPreBonus: false,
-    becameReady: false,
-    message: `${role.name}成立。`,
-  };
-
-  if (before === "preBonus") {
-    state.preBonusRemaining = Math.max(0, state.preBonusRemaining - 1);
-    if (state.preBonusRemaining <= 0) {
-      state.mode = "bonusReady";
-      state.preBonusRemaining = 0;
-      state.pendingBonus = state.pendingBonus || createBonusState();
-      note.after = state.mode;
-      note.becameReady = true;
-      note.message = `${role.name}成立。前兆突破、ボーナス開始へ。`;
-      return note;
-    }
-    note.after = state.mode;
-    note.message = `${role.name}成立。前兆残り${state.preBonusRemaining}G。`;
-    return note;
-  }
-
-  if (before === "bonusReady") {
-    note.message = "ボーナス開始を待っています。";
-    return note;
-  }
-
-  if (!role.rare) {
-    note.message = role.payout > 0
-      ? `${role.name}成立。${role.payout}枚払い出し。`
-      : `${role.name}。次のレア役に期待。`;
-    return note;
-  }
-
-  const transitionTable = gameRules.modeTransitions[before]?.[role.id];
-  const nextMode = transitionTable ? pickWeightedMap(transitionTable) : before;
-  state.mode = nextMode || before;
-  note.after = state.mode;
-
-  if (state.mode === "preBonus") {
-    state.preBonusRemaining = drawPreBonusGames();
-    state.pendingBonus = null;
-    note.enteredPreBonus = true;
-    note.message = `${role.name}で前兆へ。信念ランプが騒ぎ始めた。`;
-    return note;
-  }
-
-  note.message = `${role.name}成立。内部は${modeLabels[state.mode]}へ。`;
-  return note;
+  const event = slotEngine.playNormalGame(state, nextRandom, role);
+  state.mode = event.nextState.mode;
+  state.preBonusRemaining = event.nextState.preBonusRemaining;
+  state.pendingBonus = event.nextState.pendingBonus;
+  state.lastEngineEvent = event;
+  state.lastSlip = event.note.slip || [0, 0, 0];
+  return event.note;
 }
 
 function getEffectIdForSpin(role, modeNote) {
-  if (modeNote.becameReady) return "premium";
-  if (modeNote.enteredPreBonus) return "rush";
-  if (state.mode === "high" && role.rare) return "rush";
-  return role.effect || "lose";
+  return state.lastEngineEvent?.effectId || (modeNote.becameReady ? "premium" : role.effect || "lose");
 }
 
 function createSpinEffectPlan(role, modeNote, effectId) {
   const plan = buildEffectPlan(getEffectResult(effectId));
   const modeName = modeLabels[state.mode] || "通常";
-  if (modeNote.becameReady) {
-    plan.top = "ボーナス確定";
-  } else if (modeNote.enteredPreBonus) {
-    plan.top = "前兆";
-  } else if (effectId === "rush" && state.mode !== "high") {
-    plan.top = "激アツ";
-  } else {
-    plan.top = modeName;
-  }
-  if (!modeNote.becameReady) {
-    plan.finalAsset = plan.screenAsset;
-  }
-  plan.intro = {
-    label: role.rare ? "レア役" : "通常",
-    title: role.name,
-    message: role.rare ? "停止ごとに信念ランプがざわつく。" : "淡々と一回転を見届ける。",
-  };
-  plan.final = {
-    label: modeNote.becameReady ? "確定" : (role.rare ? "契機" : "結果"),
-    title: modeNote.becameReady ? "ボーナス確定" : role.name,
-    message: modeNote.message,
-  };
-  return plan;
+  return slotEffects.decorateSpinPlan(plan, {
+    role,
+    modeNote,
+    modeLabel: modeName,
+    preBonusRemaining: state.preBonusRemaining,
+  });
 }
 
 function buildEffectPlan(result) {
-  const basePlan = effectPlans[result?.id] || effectPlans.lose;
-  const assets = effectAssets[result?.id] || effectAssets.lose;
+  const basePlan = slotEffects.effectPlans[result?.id] || slotEffects.effectPlans.lose;
+  const assets = slotEffects.effectAssets[result?.id] || slotEffects.effectAssets.lose;
   return {
     ...basePlan,
     topAsset: pickAsset(assets.top),
@@ -535,9 +487,23 @@ function buildEffectPlan(result) {
   };
 }
 
+function buildBattleVisualPlan(scene, effectId) {
+  const result = getEffectResult(scene.tier === "lose" ? "lose" : effectId);
+  const plan = buildEffectPlan(result);
+  const battleAssets = slotEffects.effectAssets.battle?.[scene.assetGroup] || [];
+  const battleAsset = pickAsset(battleAssets);
+  return {
+    ...plan,
+    tier: scene.tier || plan.tier,
+    top: scene.top,
+    screenAsset: battleAsset || plan.screenAsset,
+    finalAsset: battleAsset || plan.finalAsset,
+  };
+}
+
 function pickAsset(assets) {
   if (!assets?.length) return null;
-  return assets[Math.floor(Math.random() * assets.length)];
+  return assets[Math.floor(nextRandom() * assets.length)];
 }
 
 function asCssUrl(asset) {
@@ -595,15 +561,15 @@ function getCommentPool(tier) {
 
 function pickCommentName() {
   const names = commentProfiles.names || ["リスナー"];
-  return names[Math.floor(Math.random() * names.length)];
+  return names[Math.floor(nextRandom() * names.length)];
 }
 
 function showStreamComment(tier, text, index) {
   if (!commentStream || !text) return;
   const item = document.createElement("span");
   item.className = `stream-comment stream-comment--${tier || "normal"}`;
-  item.style.setProperty("--comment-y", `${10 + Math.random() * 76}%`);
-  item.style.setProperty("--comment-duration", `${3.2 + Math.random() * 1.1}s`);
+  item.style.setProperty("--comment-y", `${10 + nextRandom() * 76}%`);
+  item.style.setProperty("--comment-duration", `${3.2 + nextRandom() * 1.1}s`);
   const name = document.createElement("b");
   name.textContent = pickCommentName();
   const body = document.createElement("em");
@@ -626,7 +592,7 @@ function burstStreamComments(tier, amount = null) {
   const pool = getCommentPool(normalizedTier);
   const count = amount ?? commentTierCounts[normalizedTier] ?? 4;
   for (let index = 0; index < count; index += 1) {
-    const text = pool[Math.floor(Math.random() * pool.length)];
+    const text = pool[Math.floor(nextRandom() * pool.length)];
     const timer = window.setTimeout(() => showStreamComment(normalizedTier, text, index), index * 120);
     commentTimers.push(timer);
   }
@@ -637,6 +603,32 @@ function clearStreamComments() {
   commentTimers.forEach((timer) => window.clearTimeout(timer));
   commentTimers = [];
   commentStream.innerHTML = "";
+}
+
+function scheduleGameTimer(callback, delay) {
+  if (!virtualTimeEnabled) return window.setTimeout(callback, delay);
+  const timer = { id: virtualTimerId, due: virtualNow + delay, callback };
+  virtualTimerId += 1;
+  virtualTimers.push(timer);
+  virtualTimers.sort((a, b) => a.due - b.due);
+  return timer.id;
+}
+
+function clearGameTimers() {
+  virtualTimers = [];
+}
+
+function advanceVirtualTime(ms) {
+  virtualTimeEnabled = true;
+  virtualNow += Math.max(0, Number(ms) || 0);
+  let guard = 0;
+  while (virtualTimers.length && virtualTimers[0].due <= virtualNow && guard < 100) {
+    const timer = virtualTimers.shift();
+    timer.callback();
+    guard += 1;
+  }
+  renderControls();
+  return renderGameToText();
 }
 
 function renderEffectStep(stopCount) {
@@ -698,11 +690,40 @@ function renderStatus() {
   }
   renderShop();
   renderOwnedItems();
+  renderDebugState();
+}
+
+function renderDebugState() {
+  if (!debugState) return;
+  const bonus = state.bonus || state.pendingBonus;
+  const lines = [
+    `mode: ${state.phase === "battleBonus" ? "BB中" : modeLabels[state.mode] || state.mode}`,
+    `pre: ${state.preBonusRemaining}`,
+    `role: ${state.pendingRole?.id || "-"}`,
+    `slip: ${state.lastSlip.join("/")}`,
+    `battle: ${state.battleStage}${state.battleOutcome ? `/${state.battleOutcome}` : ""}`,
+    `rate: ${bonus?.rateLabel || "-"}`,
+    `seed: ${state.lastRandomSeed || "-"}`,
+  ];
+  debugState.innerHTML = `
+    <strong>検証状態</strong>
+    <dl>${lines.map((line) => {
+      const [key, value] = line.split(": ");
+      return `<div><dt>${key}</dt><dd>${value}</dd></div>`;
+    }).join("")}</dl>
+  `;
+}
+
+function renderSoundToggle() {
+  if (!soundToggle || !slotAudio) return;
+  const muted = slotAudio.isMuted();
+  soundToggle.setAttribute("aria-pressed", String(!muted));
+  soundToggle.textContent = muted ? "音OFF" : "音ON";
 }
 
 function getSaveData() {
   return {
-    version: 2,
+    version: slotRules.version,
     coins: state.coins,
     bet: fixedBet,
     totalGames: state.totalGames,
@@ -722,17 +743,7 @@ function isValidMode(mode) {
 }
 
 function sanitizeBonus(rawBonus) {
-  if (!rawBonus || typeof rawBonus !== "object") return null;
-  const rate = Number(rawBonus.rate);
-  return {
-    id: rawBonus.id === "upper" ? "upper" : "normal",
-    name: String(rawBonus.name || "バトルボーナス"),
-    effect: rawBonus.effect === "premium" ? "premium" : "rush",
-    rate: Number.isFinite(rate) ? Math.min(0.99, Math.max(0.01, rate)) : 0.66,
-    rateLabel: String(rawBonus.rateLabel || "66%"),
-    set: Math.max(0, Number(rawBonus.set) || 0),
-    totalPayout: Math.max(0, Number(rawBonus.totalPayout) || 0),
-  };
+  return slotEngine.sanitizeBonus(rawBonus);
 }
 
 function saveGameState() {
@@ -762,6 +773,12 @@ function applySaveData(data, options = {}) {
   state.pendingPayout = 0;
   state.pendingMessage = "";
   state.lastPayout = 0;
+  state.battleStage = "idle";
+  state.battleOutcome = null;
+  state.bonusBattleAnimating = false;
+  state.lastEngineEvent = null;
+  state.lastSlip = [0, 0, 0];
+  clearGameTimers();
   if (options.persist !== false) {
     saveGameState();
   }
@@ -795,10 +812,20 @@ function renderGameToText() {
     gamesSinceBonus: state.gamesSinceBonus,
     preBonusRemaining: state.preBonusRemaining,
     pendingRole: state.pendingRole ? state.pendingRole.id : null,
+    pendingRoleName: state.pendingRole ? state.pendingRole.name : null,
     currentResult: state.currentResult ? state.currentResult.id : null,
     effectTier: state.effectPlan ? state.effectPlan.tier : null,
+    effectTone: state.effectPlan ? state.effectPlan.tone || null : null,
     lastPayout: state.lastPayout,
     bonusBattleAnimating: state.bonusBattleAnimating,
+    battleStage: state.battleStage,
+    battleOutcome: state.battleOutcome,
+    lastSlip: state.lastSlip,
+    lastEngineEvent: state.lastEngineEvent ? {
+      effectId: state.lastEngineEvent.effectId,
+      note: state.lastEngineEvent.note,
+      role: state.lastEngineEvent.role?.id,
+    } : null,
     pendingBonus: state.pendingBonus,
     bonus: state.bonus,
     ownedItems: state.ownedItems,
@@ -1034,6 +1061,7 @@ function startSpin() {
     renderControls();
     return;
   }
+  slotAudio?.play("lever");
   state.spinning = true;
   state.stopped = [false, false, false];
   state.coins -= fixedBet;
@@ -1042,6 +1070,8 @@ function startSpin() {
   state.gamesSinceBonus += 1;
   state.lastPayout = 0;
   state.lastBonusSummary = null;
+  state.battleStage = "idle";
+  state.battleOutcome = null;
   state.pendingRole = drawRole();
   const modeNote = processModeAfterRole(state.pendingRole);
   state.pendingPayout = state.pendingRole.payout;
@@ -1053,6 +1083,7 @@ function startSpin() {
   });
   state.effectPlan = createSpinEffectPlan(state.pendingRole, modeNote, effectId);
   currentStops = getStopsForRole(state.pendingRole);
+  if (modeNote.enteredPreBonus || state.mode === "preBonus") slotAudio?.play("prebonus");
   setEffectClass(state.effectPlan.tier);
   setEffectVisual(state.effectPlan);
   setTopEffectText(state.effectPlan.top);
@@ -1067,42 +1098,32 @@ function startSpin() {
 }
 
 function drawBonusType() {
-  return pickWeighted(gameRules.bonusTypes);
+  return slotEngine.pickWeighted(slotRules.bonusTypes, nextRandom);
 }
 
 function drawContinuationRate(bonusType) {
-  const rates = gameRules.continuationRates.slice(bonusType.rateBoost || 0);
-  return pickWeighted(rates.length ? rates : gameRules.continuationRates);
+  const rates = slotRules.continuationRates.slice(bonusType.rateBoost || 0);
+  return slotEngine.pickWeighted(rates.length ? rates : slotRules.continuationRates, nextRandom);
 }
 
 function createBonusState() {
-  const type = drawBonusType();
-  const rate = drawContinuationRate(type);
-  return {
-    id: type.id,
-    name: type.name,
-    effect: type.effect,
-    rate: rate.value,
-    rateLabel: rate.label,
-    set: 0,
-    totalPayout: 0,
-  };
+  return slotEngine.createBonusState(nextRandom);
 }
 
 function drawBonusSetPayout(bonus) {
-  const type = gameRules.bonusTypes.find((candidate) => candidate.id === bonus.id) || gameRules.bonusTypes[0];
-  const min = type.payoutMin;
-  const max = type.payoutMax;
-  return Math.round(min + Math.random() * (max - min));
+  return slotEngine.drawBonusSetPayout(bonus, nextRandom);
 }
 
 function startBattleBonus() {
   if (state.spinning || state.mode !== "bonusReady") return;
   const bonus = state.pendingBonus || createBonusState();
+  slotAudio?.play("bonusStart");
   state.phase = "battleBonus";
   state.bonus = { ...bonus, set: 0, totalPayout: 0 };
   state.pendingBonus = null;
   state.gamesSinceBonus = 0;
+  state.battleStage = "idle";
+  state.battleOutcome = null;
   state.pendingRole = null;
   state.pendingPayout = 0;
   state.lastPayout = 0;
@@ -1125,75 +1146,103 @@ function startBattleBonus() {
 
 function runBattleBonusSet() {
   if (state.spinning || state.bonusBattleAnimating || state.phase !== "battleBonus" || !state.bonus) return;
+  slotAudio?.play("lever");
   state.bonusBattleAnimating = true;
+  state.battleStage = "faceoff";
+  state.battleOutcome = null;
   state.totalGames += 1;
-  const payout = drawBonusSetPayout(state.bonus);
-  const nextSet = state.bonus.set + 1;
-  const continued = Math.random() < state.bonus.rate;
+  const battle = slotEngine.drawBattleSet(state.bonus, nextRandom);
   const battleTier = state.bonus.effect;
-  const plan = buildEffectPlan(getEffectResult(battleTier));
-  state.pendingRole = { id: "battleBonus", name: `${nextSet}SET バトル` };
+  const context = {
+    ...battle,
+    bonusName: state.bonus.name,
+    effectTier: battleTier === "premium" ? "premium" : "hot",
+    totalPayout: state.bonus.totalPayout,
+  };
+  const faceoff = slotEffects.getBattleScene("faceoff", context);
+  const plan = buildBattleVisualPlan(faceoff, battleTier);
+  state.pendingRole = { id: "battleBonus", name: `${battle.nextSet}SET バトル` };
   state.currentResult = getEffectResult(battleTier, { name: state.bonus.name, lamp: "勝負" });
   state.effectPlan = plan;
   setEffectClass(plan.tier);
   setEffectVisual(plan);
-  setTopEffectText("BATTLE");
-  setEffectScreenContent({
-    label: `${nextSet}SET`,
-    title: "信念バトル",
-    message: `継続率${state.bonus.rateLabel}。相手の圧を受け止めろ。`,
-  });
+  setTopEffectText(faceoff.top);
+  setEffectScreenContent(faceoff);
   burstStreamComments(plan.tier, 5);
   saveGameState();
   renderControls();
 
-  window.setTimeout(() => {
+  scheduleGameTimer(() => {
     if (!state.bonusBattleAnimating || state.phase !== "battleBonus" || !state.bonus) return;
-    setTopEffectText("激突");
-    setEffectScreenContent({
-      label: "激突",
-      title: "信念を通せ",
-      message: "液晶が揺れる。ここで押し切れば継続。",
-    });
-    burstStreamComments(plan.tier, 4);
+    state.battleStage = "attack";
+    const attack = slotEffects.getBattleScene("attack", context);
+    const attackPlan = buildBattleVisualPlan(attack, battleTier);
+    state.effectPlan = attackPlan;
+    setEffectClass(attackPlan.tier);
+    setEffectVisual(attackPlan);
+    setTopEffectText(attack.top);
+    setEffectScreenContent(attack);
+    slotAudio?.play("battleImpact");
+    burstStreamComments(attackPlan.tier, 4);
+    renderControls();
   }, 520);
 
-  window.setTimeout(() => {
-    resolveBattleBonusSet({ continued, payout, nextSet });
-  }, 1160);
+  scheduleGameTimer(() => {
+    if (!state.bonusBattleAnimating || state.phase !== "battleBonus" || !state.bonus) return;
+    state.battleStage = "hold";
+    const hold = slotEffects.getBattleScene("hold", context);
+    const holdPlan = buildBattleVisualPlan(hold, battleTier);
+    state.effectPlan = holdPlan;
+    setEffectClass(holdPlan.tier);
+    setEffectVisual(holdPlan);
+    setTopEffectText(hold.top);
+    setEffectScreenContent(hold);
+    burstStreamComments(holdPlan.tier, 4);
+    renderControls();
+  }, 980);
+
+  scheduleGameTimer(() => {
+    resolveBattleBonusSet(battle);
+  }, 1540);
 }
 
-function resolveBattleBonusSet({ continued, payout, nextSet }) {
+function resolveBattleBonusSet({ continued, payout, nextSet, milestoneReached }) {
   if (!state.bonusBattleAnimating || state.phase !== "battleBonus" || !state.bonus) return;
   state.bonusBattleAnimating = false;
   state.bonus.set = nextSet;
   state.bonus.totalPayout += payout;
+  if (milestoneReached) state.bonus.milestoneReached = true;
   state.coins += payout;
   state.lastPayout = payout;
   state.pendingRole = { id: "battleBonus", name: `${state.bonus.set}SET` };
+  state.battleStage = continued ? "continue" : "lose";
+  state.battleOutcome = continued ? "continued" : "ended";
 
   const resultEffectId = continued ? state.bonus.effect : "lose";
-  const resultPlan = buildEffectPlan(getEffectResult(resultEffectId));
-  const scene = {
-    label: continued ? "勝利" : "敗北",
-    title: continued ? `${state.bonus.name} 継続` : "バトル終了",
-    message: continued
-      ? `勝利。合計${state.bonus.totalPayout.toLocaleString("ja-JP")}枚。次セットへ。`
-      : `敗北。合計${state.bonus.totalPayout.toLocaleString("ja-JP")}枚で終了。`,
-  };
+  const scene = slotEffects.getBattleScene(continued ? "continue" : "lose", {
+    nextSet,
+    payout,
+    continued,
+    milestoneReached,
+    rateLabel: state.bonus.rateLabel,
+    bonusName: state.bonus.name,
+    totalPayout: state.bonus.totalPayout,
+    effectTier: state.bonus.effect === "premium" ? "premium" : "hot",
+  });
+  const resultPlan = buildBattleVisualPlan(scene, resultEffectId);
   state.currentResult = getEffectResult(resultEffectId, { name: state.bonus.name, lamp: continued ? "継続" : "終了" });
   state.effectPlan = resultPlan;
   setEffectClass(resultPlan.tier);
   setEffectVisual(resultPlan, true);
-  setTopEffectText(continued ? "継続" : "終了");
+  setTopEffectText(scene.top);
   setEffectScreenContent(scene, payout);
   burstStreamComments(resultPlan.tier, continued ? 6 : 4);
+  slotAudio?.play(milestoneReached ? "milestone" : (continued ? "continue" : "end"));
 
   if (!continued) {
     const endedBonus = state.bonus;
-    const postModeMap = gameRules.postBonusModes[endedBonus.id] || gameRules.postBonusModes.normal;
     state.phase = "normal";
-    state.mode = pickWeightedMap(postModeMap) || "normal";
+    state.mode = slotEngine.selectPostBonusMode(endedBonus, nextRandom);
     state.preBonusRemaining = 0;
     state.lastBonusSummary = `${endedBonus.set}SET ${endedBonus.totalPayout.toLocaleString("ja-JP")}枚`;
     state.bonus = null;
@@ -1209,7 +1258,13 @@ function stopReel(index) {
   state.stopped[index] = true;
   reels[index].classList.remove("spinning");
   const stopIndex = currentStops[index] ?? 0;
+  const slipCells = Number(state.lastSlip?.[index] || 0);
+  reels[index].style.setProperty("--slip-cells", slipCells);
+  reels[index].style.setProperty("--slip-distance", `${slipCells * 70}px`);
+  reels[index].classList.toggle("slip-stop", slipCells > 0);
+  slotAudio?.play(slipCells >= 2 ? "strongStop" : "stop");
   reels[index].style.setProperty("--stop-y", `${stopIndex * -70}px`);
+  window.setTimeout(() => reels[index].classList.remove("slip-stop"), 240);
   renderEffectStep(state.stopped.filter(Boolean).length);
 
   if (state.stopped.every(Boolean)) {
@@ -1308,6 +1363,11 @@ debugReset.addEventListener("click", () => {
   applyDebugValues();
 });
 
+soundToggle?.addEventListener("click", () => {
+  slotAudio?.toggleMuted();
+  renderSoundToggle();
+});
+
 utilityTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
     utilityTabs.forEach((item) => item.classList.toggle("is-active", item === tab));
@@ -1376,6 +1436,37 @@ loadGameState();
 loadDebugValues();
 buildDebugPanel();
 applyDebugValues();
+renderSoundToggle();
 renderControls();
 renderInitialEffect();
 window.render_game_to_text = renderGameToText;
+window.advanceTime = advanceVirtualTime;
+window.__toshiyaSlotTest = {
+  setRandomSequence(values, label = "sequence") {
+    testRandomQueue = Array.isArray(values) ? values.slice() : [];
+    state.lastRandomSeed = label;
+    state.testMode = true;
+    virtualTimeEnabled = true;
+    return renderGameToText();
+  },
+  setSeed(seed) {
+    const rng = slotEngine.createSeededRng(seed);
+    testRandomQueue = Array.from({ length: 512 }, () => rng());
+    state.lastRandomSeed = String(seed);
+    state.testMode = true;
+    virtualTimeEnabled = true;
+    return renderGameToText();
+  },
+  setState(data) {
+    applySaveData({ ...getSaveData(), ...data });
+    state.testMode = true;
+    return renderGameToText();
+  },
+  clearVirtualTimers() {
+    clearGameTimers();
+    return renderGameToText();
+  },
+  getState() {
+    return renderGameToText();
+  },
+};
