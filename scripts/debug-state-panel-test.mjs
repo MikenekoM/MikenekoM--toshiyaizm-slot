@@ -95,7 +95,14 @@ current = await clickScenario("bb-continue");
 if (current.battleStage !== "faceoff" || !current.lastBattle?.attack) {
   failed.push("bb continue did not enter faceoff");
 }
-current = await finishBattle();
+await page.click("#spinButton");
+current = await state();
+if (current.battleStage !== "attack") failed.push("bb continue did not advance to attack from spin button");
+await page.keyboard.press("Space");
+current = await state();
+if (current.battleStage !== "hold") failed.push("bb continue did not advance to hold from space");
+await page.click("#spinButton");
+current = await state();
 if (current.battleOutcome !== "continued" || current.phase !== "battleBonus") {
   failed.push("bb continue result failed");
 }

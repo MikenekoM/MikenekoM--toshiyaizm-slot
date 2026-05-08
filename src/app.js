@@ -1424,11 +1424,7 @@ function runDebugAction(action) {
   if (action === "apply-bonus") return applyDebugDetailBonus();
   if (action === "apply-battle") return applyDebugDetailBattle();
   if (action === "start") {
-    if (state.phase === "battleBonus" && state.bonus) {
-      runBattleBonusSet();
-    } else {
-      startSpin();
-    }
+    startSpin();
   } else if (action === "stop-left") {
     stopReel(0);
   } else if (action === "stop-center") {
@@ -1446,6 +1442,20 @@ function runDebugAction(action) {
   return renderGameToText();
 }
 
+function advanceDebugBattleStep() {
+  if (!state.debugSandboxActive || !state.bonusBattleAnimating || state.phase !== "battleBonus") return false;
+  if (state.battleStage === "faceoff") {
+    advanceVirtualTime(800);
+  } else if (state.battleStage === "attack") {
+    advanceVirtualTime(700);
+  } else if (state.battleStage === "hold") {
+    advanceVirtualTime(4200);
+  } else {
+    advanceVirtualTime(4200);
+  }
+  return true;
+}
+
 function loadDebugValues() {
   try {
     const saved = JSON.parse(localStorage.getItem(debugStorageKey) || "{}");
@@ -1458,8 +1468,17 @@ function loadDebugValues() {
 function renderControls() {
   const readyForBonus = state.mode === "bonusReady" && state.phase !== "battleBonus";
   const canSpinNormal = state.phase === "battleBonus" || state.coins >= fixedBet;
-  spinButton.disabled = state.spinning || state.bonusBattleAnimating || readyForBonus || !canSpinNormal;
-  spinButton.textContent = state.phase === "battleBonus" ? "勝負" : "回す";
+  const canStepDebugBattle = state.debugSandboxActive && state.bonusBattleAnimating && state.phase === "battleBonus";
+  spinButton.disabled = state.spinning || (state.bonusBattleAnimating && !canStepDebugBattle) || readyForBonus || !canSpinNormal;
+  if (state.phase === "battleBonus" && canStepDebugBattle) {
+    spinButton.textContent = state.battleStage === "faceoff"
+      ? "攻撃へ"
+      : state.battleStage === "attack"
+        ? "溜めへ"
+        : "結果へ";
+  } else {
+    spinButton.textContent = state.phase === "battleBonus" ? "勝負" : "回す";
+  }
   if (bonusStartButton) {
     bonusStartButton.hidden = !readyForBonus;
     bonusStartButton.disabled = !readyForBonus;
@@ -1476,6 +1495,7 @@ function renderControls() {
 
 function startSpin() {
   if (state.phase === "battleBonus") {
+    if (advanceDebugBattleStep()) return;
     runBattleBonusSet();
     return;
   }
