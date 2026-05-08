@@ -10,6 +10,7 @@
     "test:smoke": "node scripts/smoke-test.mjs",
     "test:bonus": "node scripts/bonus-smoke-test.mjs",
     "test:roles": "node scripts/role-alignment-test.mjs",
+    "test:debug": "node scripts/debug-state-panel-test.mjs",
     "test:effects": "node scripts/effect-state-test.mjs && node scripts/effect-transition-test.mjs && node scripts/effect-sequence-test.mjs",
     "test:visual-report": "node scripts/visual-playtest-report.mjs",
     "test:dist": "node scripts/dist-smoke-test.mjs"

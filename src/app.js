@@ -32,7 +32,11 @@ const imagegenMessage = document.querySelector("#imagegenMessage");
 const imagegenPreview = document.querySelector("#imagegenPreview");
 const imagegenImage = document.querySelector("#imagegenImage");
 const debugToggle = document.querySelector("#debugToggle");
+const debugPanelTitle = document.querySelector("#debugPanelTitle");
+const debugTabButtons = [...document.querySelectorAll("[data-debug-tab]")];
+const debugTabContents = [...document.querySelectorAll("[data-debug-content]")];
 const debugControls = document.querySelector("#debugControls");
+const debugScenarioControls = document.querySelector("#debugScenarioControls");
 const debugCopy = document.querySelector("#debugCopy");
 const debugReset = document.querySelector("#debugReset");
 const debugOutput = document.querySelector("#debugOutput");
@@ -132,11 +136,38 @@ const state = {
   lastSlip: [0, 0, 0],
   lastRandomSeed: null,
   testMode: false,
+  debugSandboxActive: false,
+  debugScenario: null,
+  debugTimeline: [],
+  debugNextBattle: null,
   pendingBonus: null,
   bonus: null,
   lastBonusSummary: null,
   ownedItems: [],
 };
+
+let debugForcedRole = null;
+
+const debugDefenseLabels = {
+  toshiyaFirst: "先制",
+  dodge: "回避",
+  counter: "反撃",
+  stand: "耐える",
+  revival: "復活",
+  collapse: "倒れる",
+};
+
+const debugScenarioDefinitions = [
+  { id: "quiet-normal", label: "通常静寂", group: "通常", kind: "spin", roleId: "blank", base: { mode: "normal" } },
+  { id: "weak-high", label: "角チェ→高確", group: "通常", kind: "spin", roleId: "weakCherry", base: { mode: "normal" }, randoms: [0.9, 0, 0, 0, 0, 0] },
+  { id: "strong-prebonus", label: "中段チェ→前兆", group: "通常", kind: "spin", roleId: "strongCherry", base: { mode: "normal" }, randoms: [0.9, 0, 0, 0, 0, 0] },
+  { id: "prebonus-ready", label: "前兆最終G→確定", group: "通常", kind: "spin", roleId: "blank", base: { mode: "preBonus", preBonusRemaining: 1 }, randoms: [0, 0, 0, 0, 0, 0] },
+  { id: "bonus-start", label: "BB開始", group: "BB", kind: "bonusStart", bonus: { rateLabel: "79%", entrySymbol: "red", aura: "白" } },
+  { id: "bb-continue", label: "BB継続", group: "BB", kind: "battle", bonus: { rateLabel: "79%", set: 0, aura: "青" }, battle: { continued: true, attack: "light", defense: "counter", payout: 140 } },
+  { id: "bb-lose", label: "BB終了", group: "BB", kind: "battle", bonus: { rateLabel: "66%", set: 0, aura: "白" }, battle: { continued: false, attack: "middle", defense: "collapse", payout: 140 } },
+  { id: "bb-revival", label: "大攻撃→復活", group: "BB", kind: "battle", bonus: { rateLabel: "84%", set: 4, totalPayout: 620, aura: "赤" }, battle: { continued: true, attack: "heavy", defense: "revival", payout: 160 } },
+  { id: "milestone", label: "20SET到達", group: "BB", kind: "battle", bonus: { rateLabel: "89%", entrySymbol: "belief", set: 19, totalPayout: 2600, aura: "虹" }, battle: { continued: true, attack: "toshiyaFirst", defense: "toshiyaFirst", payout: 170 } },
+];
 
 const betProfiles = {
   3: { lines: 5, label: "3枚固定・上中下＋斜め 5ライン", payoutMultiplier: 1 },
@@ -507,6 +538,202 @@ function pickAsset(assets) {
   return assets[Math.floor(nextRandom() * assets.length)];
 }
 
+function getRoleById(roleId) {
+  return slotRules.roles.find((role) => role.id === roleId) || null;
+}
+
+function getRateByLabel(rateLabel = "66%") {
+  return slotRules.continuationRates.find((rate) => rate.label === rateLabel)
+    || slotRules.continuationRates[0];
+}
+
+function getEntrySymbolById(entrySymbolId = "red") {
+  return slotRules.entrySymbols.find((symbol) => symbol.id === entrySymbolId)
+    || slotRules.entrySymbols[0];
+}
+
+function getBattleAttackById(attackId = "middle") {
+  return slotRules.battle.attackPatterns.find((attack) => attack.id === attackId)
+    || slotRules.battle.attackPatterns[0];
+}
+
+function createDebugDefense(defenseId = "stand") {
+  return {
+    id: defenseId,
+    name: debugDefenseLabels[defenseId] || defenseId,
+    dramatic: defenseId === "revival" || defenseId === "stand",
+  };
+}
+
+function createDebugBonus(overrides = {}) {
+  const entrySymbol = getEntrySymbolById(overrides.entrySymbol || (overrides.rateLabel === "89%" ? "belief" : "red"));
+  const type = slotRules.bonusTypes.find((candidate) => candidate.id === entrySymbol.bonusId) || slotRules.bonusTypes[0];
+  const rate = getRateByLabel(overrides.rateLabel || "66%");
+  return slotEngine.sanitizeBonus({
+    id: type.id,
+    name: type.name,
+    effect: entrySymbol.effect || type.effect,
+    entrySymbol: entrySymbol.id,
+    entrySymbolName: entrySymbol.name,
+    rate: rate.value,
+    rateLabel: rate.label,
+    aura: overrides.aura || "白",
+    set: Math.max(0, Number(overrides.set) || 0),
+    totalPayout: Math.max(0, Number(overrides.totalPayout) || 0),
+    milestoneReached: Boolean(overrides.milestoneReached),
+  });
+}
+
+function createDebugSaveData(overrides = {}) {
+  return {
+    version: slotRules.version,
+    coins: Number.isFinite(Number(overrides.coins)) ? Number(overrides.coins) : 1000,
+    bet: fixedBet,
+    totalGames: Math.max(0, Number(overrides.totalGames) || 0),
+    gamesSinceBonus: Math.max(0, Number(overrides.gamesSinceBonus) || 0),
+    mode: overrides.mode || "normal",
+    phase: overrides.phase || "normal",
+    preBonusRemaining: Math.max(0, Number(overrides.preBonusRemaining) || 0),
+    pendingBonus: overrides.pendingBonus || null,
+    bonus: overrides.bonus || null,
+    lastBonusSummary: null,
+    ownedItems: Array.isArray(overrides.ownedItems) ? overrides.ownedItems.slice() : [],
+  };
+}
+
+function pushDebugTimeline(stage, label = "") {
+  if (!state.debugSandboxActive) return;
+  state.debugTimeline = [
+    ...state.debugTimeline,
+    { stage, label, at: virtualNow },
+  ].slice(-18);
+}
+
+function enterDebugSandbox(scenarioId = null) {
+  clearGameTimers();
+  virtualTimeEnabled = true;
+  virtualNow = 0;
+  state.testMode = true;
+  state.debugSandboxActive = true;
+  state.debugScenario = scenarioId;
+  state.debugTimeline = [];
+  state.debugNextBattle = null;
+  debugForcedRole = null;
+}
+
+function normalizeForcedBattle(forcedBattle = {}) {
+  const attack = getBattleAttackById(forcedBattle.attack);
+  const continued = typeof forcedBattle.continued === "boolean"
+    ? forcedBattle.continued
+    : forcedBattle.defense !== "collapse";
+  let defenseId = forcedBattle.defense || (continued ? "stand" : "collapse");
+  if (!continued) defenseId = "collapse";
+  if (continued && defenseId === "collapse") defenseId = attack.id === "toshiyaFirst" ? "toshiyaFirst" : "stand";
+  return {
+    continued,
+    attack,
+    defense: createDebugDefense(defenseId),
+    payout: Number.isFinite(Number(forcedBattle.payout)) ? Number(forcedBattle.payout) : 140,
+  };
+}
+
+function setNextDebugBattle(forcedBattle = {}) {
+  state.debugNextBattle = normalizeForcedBattle(forcedBattle);
+  state.testMode = true;
+  renderControls();
+  return renderGameToText();
+}
+
+function prepareDebugSpinScenario(definition) {
+  enterDebugSandbox(definition.id);
+  state.lastRandomSeed = `debug:${definition.id}`;
+  applySaveData(createDebugSaveData(definition.base || {}), { persist: false });
+  state.debugSandboxActive = true;
+  state.testMode = true;
+  state.debugScenario = definition.id;
+  testRandomQueue = Array.isArray(definition.randoms) ? definition.randoms.slice() : [];
+  debugForcedRole = definition.roleId;
+  startSpin();
+  pushDebugTimeline("spin-intro", definition.label);
+  renderDebugState();
+  return renderGameToText();
+}
+
+function prepareDebugBonusStart(definition) {
+  enterDebugSandbox(definition.id);
+  state.lastRandomSeed = `debug:${definition.id}`;
+  applySaveData(createDebugSaveData({
+    mode: "bonusReady",
+    pendingBonus: createDebugBonus(definition.bonus || {}),
+  }), { persist: false });
+  state.debugSandboxActive = true;
+  state.testMode = true;
+  state.debugScenario = definition.id;
+  startBattleBonus();
+  pushDebugTimeline("bonus-start", definition.label);
+  renderDebugState();
+  return renderGameToText();
+}
+
+function prepareDebugBattleScenario(definition) {
+  enterDebugSandbox(definition.id);
+  state.lastRandomSeed = `debug:${definition.id}`;
+  applySaveData(createDebugSaveData({
+    mode: "bonusReady",
+    phase: "battleBonus",
+    bonus: createDebugBonus(definition.bonus || {}),
+  }), { persist: false });
+  state.debugSandboxActive = true;
+  state.testMode = true;
+  state.debugScenario = definition.id;
+  state.debugNextBattle = normalizeForcedBattle(definition.battle || {});
+  runBattleBonusSet();
+  pushDebugTimeline("battle-faceoff", definition.label);
+  renderDebugState();
+  return renderGameToText();
+}
+
+function listDebugScenarios() {
+  return debugScenarioDefinitions.map(({ id, label, group, kind }) => ({ id, label, group, kind }));
+}
+
+function runDebugScenario(id, options = {}) {
+  const definition = debugScenarioDefinitions.find((scenario) => scenario.id === id);
+  if (!definition) return renderGameToText();
+  const merged = {
+    ...definition,
+    ...options,
+    base: { ...(definition.base || {}), ...(options.base || {}) },
+    bonus: { ...(definition.bonus || {}), ...(options.bonus || {}) },
+    battle: { ...(definition.battle || {}), ...(options.battle || {}) },
+  };
+  if (merged.kind === "spin") return prepareDebugSpinScenario(merged);
+  if (merged.kind === "bonusStart") return prepareDebugBonusStart(merged);
+  return prepareDebugBattleScenario(merged);
+}
+
+function exitDebugSandbox() {
+  const saved = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(gameStorageKey) || "null");
+    } catch {
+      return null;
+    }
+  })();
+  clearGameTimers();
+  testRandomQueue = [];
+  debugForcedRole = null;
+  virtualTimeEnabled = false;
+  state.debugSandboxActive = false;
+  state.testMode = false;
+  state.debugScenario = null;
+  state.debugTimeline = [];
+  state.debugNextBattle = null;
+  applySaveData(saved && typeof saved === "object" ? saved : createDebugSaveData({ coins: 300 }), { persist: false });
+  renderDebugState();
+  return renderGameToText();
+}
+
 function asCssUrl(asset) {
   const runtimeAsset = asset?.replace(/\.png$/i, ".webp");
   return runtimeAsset ? `url("${assetBasePath}${runtimeAsset}")` : "none";
@@ -710,6 +937,9 @@ function renderDebugState() {
     `symbol: ${bonus?.entrySymbolName || "-"}`,
     `aura: ${bonus?.aura || "-"}`,
     `seed: ${state.lastRandomSeed || "-"}`,
+    `sandbox: ${state.debugSandboxActive ? "ON" : "OFF"}`,
+    `scenario: ${state.debugScenario || "-"}`,
+    `nextBB: ${state.debugNextBattle ? `${state.debugNextBattle.attack?.name || "-"}:${state.debugNextBattle.defense?.name || "-"}` : "-"}`,
   ];
   debugState.innerHTML = `
     <strong>検証状態</strong>
@@ -753,6 +983,7 @@ function sanitizeBonus(rawBonus) {
 }
 
 function saveGameState() {
+  if (state.debugSandboxActive) return;
   localStorage.setItem(gameStorageKey, JSON.stringify(getSaveData()));
 }
 
@@ -828,6 +1059,17 @@ function renderGameToText() {
     battleStage: state.battleStage,
     battleOutcome: state.battleOutcome,
     lastBattle: state.lastBattle,
+    debugSandboxActive: state.debugSandboxActive,
+    debugScenario: state.debugScenario,
+    debugTimeline: state.debugTimeline,
+    debugNextBattle: state.debugNextBattle ? {
+      continued: state.debugNextBattle.continued,
+      payout: state.debugNextBattle.payout,
+      attack: state.debugNextBattle.attack?.id || null,
+      attackName: state.debugNextBattle.attack?.name || null,
+      defense: state.debugNextBattle.defense?.id || null,
+      defenseName: state.debugNextBattle.defense?.name || null,
+    } : null,
     lastSlip: state.lastSlip,
     lastEngineEvent: state.lastEngineEvent ? {
       effectId: state.lastEngineEvent.effectId,
@@ -1021,6 +1263,189 @@ function buildDebugPanel() {
   });
 }
 
+function setDebugTab(tabName) {
+  const active = tabName === "state" ? "state" : "layout";
+  debugTabButtons.forEach((button) => {
+    const isActive = button.dataset.debugTab === active;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+  debugTabContents.forEach((content) => {
+    content.classList.toggle("is-active", content.dataset.debugContent === active);
+  });
+  if (debugPanelTitle) debugPanelTitle.textContent = active === "state" ? "状態再生" : "位置調整";
+  if (debugCopy) debugCopy.hidden = active !== "layout";
+  if (debugReset) debugReset.hidden = active !== "layout";
+}
+
+function createSelectOptions(items, selectedValue = "") {
+  return items.map((item) => {
+    const value = typeof item === "string" ? item : item.value;
+    const label = typeof item === "string" ? item : item.label;
+    return `<option value="${value}" ${value === selectedValue ? "selected" : ""}>${label}</option>`;
+  }).join("");
+}
+
+function buildDebugScenarioPanel() {
+  if (!debugScenarioControls) return;
+  const grouped = debugScenarioDefinitions.reduce((acc, scenario) => {
+    acc[scenario.group] = acc[scenario.group] || [];
+    acc[scenario.group].push(scenario);
+    return acc;
+  }, {});
+  const modeOptions = Object.entries(modeLabels).map(([value, label]) => ({ value, label }));
+  const rateOptions = slotRules.continuationRates.map((rate) => ({ value: rate.label, label: rate.label }));
+  const symbolOptions = slotRules.entrySymbols.map((symbol) => ({ value: symbol.id, label: symbol.name }));
+  const auraOptions = ["白", "青", "黄", "緑", "赤", "虹"];
+  const attackOptions = slotRules.battle.attackPatterns.map((attack) => ({ value: attack.id, label: attack.name }));
+  const defenseOptions = Object.entries(debugDefenseLabels).map(([value, label]) => ({ value, label }));
+  const scenarioSections = Object.entries(grouped).map(([groupName, scenarios]) => `
+    <section class="debug-scenario-group">
+      <strong>${groupName}シナリオ</strong>
+      <div class="debug-scenario-grid">
+        ${scenarios.map((scenario) => `<button type="button" data-debug-scenario="${scenario.id}">${scenario.label}</button>`).join("")}
+      </div>
+    </section>
+  `).join("");
+
+  debugScenarioControls.innerHTML = `
+    ${scenarioSections}
+    <section class="debug-scenario-group">
+      <strong>段階送り</strong>
+      <div class="debug-step-grid">
+        <button type="button" data-debug-action="start">回す/勝負</button>
+        <button type="button" data-debug-action="stop-left">第一停止</button>
+        <button type="button" data-debug-action="stop-center">第二停止</button>
+        <button type="button" data-debug-action="stop-right">第三停止</button>
+        <button type="button" data-debug-action="battle-attack">攻撃へ</button>
+        <button type="button" data-debug-action="battle-hold">溜めへ</button>
+        <button type="button" data-debug-action="battle-result">結果へ</button>
+        <button type="button" data-debug-action="restore-save">保存状態へ戻す</button>
+      </div>
+    </section>
+    <section class="debug-scenario-group">
+      <strong>詳細指定</strong>
+      <div class="debug-detail-grid">
+        <div class="debug-detail-field"><label>内部</label><select data-debug-field="mode">${createSelectOptions(modeOptions, "normal")}</select></div>
+        <div class="debug-detail-field"><label>前兆残り</label><input type="number" min="0" max="32" value="1" data-debug-field="pre"></div>
+        <div class="debug-detail-field"><label>継続率</label><select data-debug-field="rate">${createSelectOptions(rateOptions, "79%")}</select></div>
+        <div class="debug-detail-field"><label>図柄</label><select data-debug-field="symbol">${createSelectOptions(symbolOptions, "red")}</select></div>
+        <div class="debug-detail-field"><label>オーラ</label><select data-debug-field="aura">${createSelectOptions(auraOptions, "白")}</select></div>
+        <div class="debug-detail-field"><label>SET数</label><input type="number" min="0" max="99" value="0" data-debug-field="set"></div>
+        <div class="debug-detail-field"><label>攻撃</label><select data-debug-field="attack">${createSelectOptions(attackOptions, "middle")}</select></div>
+        <div class="debug-detail-field"><label>結果</label><select data-debug-field="outcome">${createSelectOptions([{ value: "continued", label: "継続" }, { value: "ended", label: "終了" }], "continued")}</select></div>
+        <div class="debug-detail-field"><label>反応</label><select data-debug-field="defense">${createSelectOptions(defenseOptions, "stand")}</select></div>
+      </div>
+      <div class="debug-form-actions">
+        <button type="button" data-debug-action="apply-state">通常状態へ反映</button>
+        <button type="button" data-debug-action="apply-bonus">BB状態へ反映</button>
+        <button type="button" data-debug-action="apply-battle">詳細BBを勝負</button>
+      </div>
+    </section>
+  `;
+
+  debugScenarioControls.addEventListener("click", (event) => {
+    const scenarioButton = event.target.closest("[data-debug-scenario]");
+    if (scenarioButton) {
+      runDebugScenario(scenarioButton.dataset.debugScenario);
+      return;
+    }
+    const actionButton = event.target.closest("[data-debug-action]");
+    if (actionButton) runDebugAction(actionButton.dataset.debugAction);
+  });
+}
+
+function getDebugFieldValue(name) {
+  return debugScenarioControls?.querySelector(`[data-debug-field="${name}"]`)?.value;
+}
+
+function getDebugDetailBonus() {
+  const set = Math.max(0, Number(getDebugFieldValue("set")) || 0);
+  return createDebugBonus({
+    rateLabel: getDebugFieldValue("rate") || "79%",
+    entrySymbol: getDebugFieldValue("symbol") || "red",
+    aura: getDebugFieldValue("aura") || "白",
+    set,
+    totalPayout: set * 140,
+    milestoneReached: set >= slotRules.battle.milestoneSet,
+  });
+}
+
+function applyDebugDetailState() {
+  enterDebugSandbox("custom-state");
+  const mode = getDebugFieldValue("mode") || "normal";
+  const pendingBonus = mode === "bonusReady" ? getDebugDetailBonus() : null;
+  applySaveData(createDebugSaveData({
+    mode,
+    preBonusRemaining: mode === "preBonus" ? Number(getDebugFieldValue("pre")) || 1 : 0,
+    pendingBonus,
+  }), { persist: false });
+  state.debugSandboxActive = true;
+  state.testMode = true;
+  state.debugScenario = "custom-state";
+  pushDebugTimeline("custom-state", modeLabels[mode] || mode);
+  renderDebugState();
+  return renderGameToText();
+}
+
+function applyDebugDetailBonus() {
+  enterDebugSandbox("custom-bonus");
+  applySaveData(createDebugSaveData({
+    mode: "bonusReady",
+    phase: "battleBonus",
+    bonus: getDebugDetailBonus(),
+  }), { persist: false });
+  state.debugSandboxActive = true;
+  state.testMode = true;
+  state.debugScenario = "custom-bonus";
+  pushDebugTimeline("custom-bonus", state.bonus?.rateLabel || "");
+  renderDebugState();
+  return renderGameToText();
+}
+
+function applyDebugDetailBattle() {
+  if (!state.debugSandboxActive || state.phase !== "battleBonus" || !state.bonus) {
+    applyDebugDetailBonus();
+  }
+  setNextDebugBattle({
+    continued: getDebugFieldValue("outcome") !== "ended",
+    attack: getDebugFieldValue("attack") || "middle",
+    defense: getDebugFieldValue("defense") || "stand",
+    payout: state.bonus?.id === "upper" ? 170 : 140,
+  });
+  runBattleBonusSet();
+  renderDebugState();
+  return renderGameToText();
+}
+
+function runDebugAction(action) {
+  if (action === "restore-save") return exitDebugSandbox();
+  if (action === "apply-state") return applyDebugDetailState();
+  if (action === "apply-bonus") return applyDebugDetailBonus();
+  if (action === "apply-battle") return applyDebugDetailBattle();
+  if (action === "start") {
+    if (state.phase === "battleBonus" && state.bonus) {
+      runBattleBonusSet();
+    } else {
+      startSpin();
+    }
+  } else if (action === "stop-left") {
+    stopReel(0);
+  } else if (action === "stop-center") {
+    stopReel(1);
+  } else if (action === "stop-right") {
+    stopReel(2);
+  } else if (action === "battle-attack") {
+    advanceVirtualTime(800);
+  } else if (action === "battle-hold") {
+    advanceVirtualTime(700);
+  } else if (action === "battle-result") {
+    advanceVirtualTime(4200);
+  }
+  renderDebugState();
+  return renderGameToText();
+}
+
 function loadDebugValues() {
   try {
     const saved = JSON.parse(localStorage.getItem(debugStorageKey) || "{}");
@@ -1080,7 +1505,8 @@ function startSpin() {
   state.lastBonusSummary = null;
   state.battleStage = "idle";
   state.battleOutcome = null;
-  state.pendingRole = drawRole();
+  state.pendingRole = debugForcedRole ? (getRoleById(debugForcedRole) || drawRole()) : drawRole();
+  debugForcedRole = null;
   const modeNote = processModeAfterRole(state.pendingRole);
   state.pendingPayout = state.pendingRole.payout;
   state.pendingMessage = modeNote.message;
@@ -1098,6 +1524,7 @@ function startSpin() {
   setEffectScreenContent(state.effectPlan.intro);
   clearStreamComments();
   burstStreamComments(state.effectPlan.tier);
+  pushDebugTimeline("spin-start", state.pendingRole.name);
   reels.forEach((reel) => {
     reel.style.setProperty("--spin-start", reel.style.getPropertyValue("--stop-y") || "0px");
     reel.classList.add("spinning");
@@ -1150,6 +1577,7 @@ function startBattleBonus() {
   setEffectScreenContent(state.effectPlan.intro);
   clearStreamComments();
   burstStreamComments(state.effectPlan.tier, 3);
+  pushDebugTimeline("bonus-start", state.bonus.entrySymbolName || state.bonus.name);
   saveGameState();
   renderControls();
 }
@@ -1161,7 +1589,9 @@ function runBattleBonusSet() {
   state.battleStage = "faceoff";
   state.battleOutcome = null;
   state.totalGames += 1;
-  const battle = slotEngine.drawBattleSet(state.bonus, nextRandom);
+  const forcedBattle = state.debugNextBattle;
+  state.debugNextBattle = null;
+  const battle = slotEngine.drawBattleSet(state.bonus, nextRandom, forcedBattle || {});
   const battleTier = state.bonus.effect;
   const context = {
     ...battle,
@@ -1189,6 +1619,7 @@ function runBattleBonusSet() {
   setEffectScreenContent(faceoff);
   clearStreamComments();
   burstStreamComments(plan.tier, 3);
+  pushDebugTimeline("battle-faceoff", `${battle.nextSet}SET`);
   saveGameState();
   renderControls();
 
@@ -1205,6 +1636,7 @@ function runBattleBonusSet() {
     slotAudio?.play("battleImpact");
     clearStreamComments();
     burstStreamComments(attackPlan.tier, 2);
+    pushDebugTimeline("battle-attack", attack.title);
     renderControls();
   }, 720);
 
@@ -1220,6 +1652,7 @@ function runBattleBonusSet() {
     setEffectScreenContent(hold);
     clearStreamComments();
     burstStreamComments(holdPlan.tier, 1);
+    pushDebugTimeline("battle-hold", hold.title);
     renderControls();
   }, 1380);
 
@@ -1281,6 +1714,7 @@ function resolveBattleBonusSet({ continued, payout, nextSet, milestoneReached, a
     state.pendingRole = null;
   }
 
+  pushDebugTimeline(continued ? "battle-continue" : "battle-lose", scene.title);
   saveGameState();
   renderControls();
 }
@@ -1298,6 +1732,7 @@ function stopReel(index) {
   reels[index].style.setProperty("--stop-y", `${stopIndex * -70}px`);
   window.setTimeout(() => reels[index].classList.remove("slip-stop"), 240);
   renderEffectStep(state.stopped.filter(Boolean).length);
+  pushDebugTimeline(`spin-stop-${index + 1}`, state.pendingRole?.name || "");
 
   if (state.stopped.every(Boolean)) {
     state.spinning = false;
@@ -1317,6 +1752,7 @@ function finishSpin() {
   setTopEffectText(plan.top || result.lamp);
   setEffectScreenContent(plan.final, payout);
   burstStreamComments(plan.tier, payout > 0 ? 6 : 4);
+  pushDebugTimeline("spin-result", plan.final?.title || result.name);
   saveGameState();
 }
 
@@ -1373,6 +1809,10 @@ debugToggle.addEventListener("click", () => {
   if (isDebugMode) {
     setMode(true);
   }
+});
+
+debugTabButtons.forEach((button) => {
+  button.addEventListener("click", () => setDebugTab(button.dataset.debugTab));
 });
 
 debugCopy.addEventListener("click", async () => {
@@ -1467,7 +1907,9 @@ document.addEventListener("keydown", (event) => {
 loadGameState();
 loadDebugValues();
 buildDebugPanel();
+buildDebugScenarioPanel();
 applyDebugValues();
+setDebugTab("layout");
 renderSoundToggle();
 renderControls();
 renderInitialEffect();
@@ -1490,10 +1932,19 @@ window.__toshiyaSlotTest = {
     return renderGameToText();
   },
   setState(data) {
-    applySaveData({ ...getSaveData(), ...data });
+    enterDebugSandbox("api-set-state");
+    applySaveData({ ...getSaveData(), ...data }, { persist: false });
     state.testMode = true;
+    state.debugSandboxActive = true;
+    state.debugScenario = "api-set-state";
     return renderGameToText();
   },
+  listDebugScenarios,
+  runDebugScenario,
+  setNextBattle(forcedBattle) {
+    return setNextDebugBattle(forcedBattle);
+  },
+  exitDebugSandbox,
   clearVirtualTimers() {
     clearGameTimers();
     return renderGameToText();

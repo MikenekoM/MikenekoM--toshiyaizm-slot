@@ -1417,6 +1417,31 @@ button {
   border-bottom: 1px solid rgba(255, 225, 138, 0.35);
 }
 
+.debug-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid rgba(255, 225, 138, 0.24);
+}
+
+.debug-tabs button {
+  height: 34px;
+  border: 0;
+  border-right: 1px solid rgba(255, 225, 138, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cdbb8f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.debug-tabs button:last-child {
+  border-right: 0;
+}
+
+.debug-tabs button.is-active {
+  background: rgba(255, 225, 138, 0.12);
+  color: var(--gold-bright);
+}
+
 .debug-panel__head button {
   border: 1px solid rgba(255, 225, 138, 0.5);
   border-radius: 5px;
@@ -1430,6 +1455,14 @@ button {
   max-height: 660px;
   overflow: auto;
   padding: 10px;
+}
+
+.debug-tab-content {
+  display: none;
+}
+
+.debug-tab-content.is-active {
+  display: block;
 }
 
 .debug-group {
@@ -1472,6 +1505,84 @@ button {
   color: #ffe18a;
   font-size: 12px;
   font-weight: 900;
+}
+
+.debug-scenario-panel {
+  max-height: 574px;
+}
+
+.debug-scenario-group {
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.debug-scenario-group strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #ffe18a;
+  font-size: 13px;
+}
+
+.debug-scenario-grid,
+.debug-step-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.debug-scenario-grid button,
+.debug-step-grid button,
+.debug-form-actions button {
+  min-height: 30px;
+  border: 1px solid rgba(255, 225, 138, 0.38);
+  border-radius: 5px;
+  background: #151515;
+  color: #ffe18a;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.debug-scenario-grid button:hover,
+.debug-step-grid button:hover,
+.debug-form-actions button:hover {
+  background: rgba(255, 225, 138, 0.12);
+}
+
+.debug-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.debug-detail-field {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.debug-detail-field label {
+  color: #aa9a75;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.debug-detail-field select,
+.debug-detail-field input {
+  width: 100%;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+  background: #101010;
+  color: #fff7cf;
+  font-size: 12px;
+}
+
+.debug-form-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .debug-state {
@@ -1532,6 +1643,14 @@ button {
   color: #e9dcc5;
   font: 11px/1.45 Consolas, monospace;
   resize: none;
+}
+
+#debugOutput.debug-tab-content {
+  display: none;
+}
+
+#debugOutput.debug-tab-content.is-active {
+  display: block;
 }
 
 .mock-stage.debug-mode .top-effect-overlay,

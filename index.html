@@ -261,13 +261,18 @@
         <button class="debug-toggle" id="debugToggle" type="button" aria-pressed="false">調整</button>
         <aside class="debug-panel" id="debugPanel" aria-label="調整パネル">
           <div class="debug-panel__head">
-            <strong>位置調整</strong>
+            <strong id="debugPanelTitle">位置調整</strong>
             <button type="button" id="debugCopy">CSSコピー</button>
             <button type="button" id="debugReset">リセット</button>
           </div>
-          <div class="debug-panel__body" id="debugControls"></div>
+          <div class="debug-tabs" role="tablist" aria-label="デバッグ種別">
+            <button class="is-active" type="button" data-debug-tab="layout" aria-pressed="true">位置</button>
+            <button type="button" data-debug-tab="state" aria-pressed="false">状態</button>
+          </div>
+          <div class="debug-panel__body debug-tab-content is-active" id="debugControls" data-debug-content="layout"></div>
+          <div class="debug-panel__body debug-tab-content debug-scenario-panel" id="debugScenarioControls" data-debug-content="state"></div>
           <div class="debug-state" id="debugState" aria-label="内部状態"></div>
-          <textarea id="debugOutput" readonly aria-label="調整結果"></textarea>
+          <textarea class="debug-tab-content is-active" id="debugOutput" data-debug-content="layout" readonly aria-label="調整結果"></textarea>
         </aside>
       </main>
     </div>
