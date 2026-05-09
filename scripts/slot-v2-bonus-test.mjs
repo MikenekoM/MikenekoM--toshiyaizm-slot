@@ -35,6 +35,65 @@ if (entryMiss.started || entryMiss.nextState.phase === "bonus" || entryMiss.next
   failed.push("bonus entry miss should stay in 7/logo aiming turn");
 }
 
+const normalPending = {
+  entrySymbol: "normal7",
+  entryName: "通常7揃い",
+  rateLabel: "79%",
+  rate: 0.79,
+  stockSets: 1,
+  premium: false,
+};
+const normalEntryRole = {
+  id: normalPending.entrySymbol,
+  name: normalPending.entryName,
+  payout: 0,
+  targetable: true,
+};
+const falseSevenEntry = engine.resolveBonusEntry(
+  engine.initialState({
+    internalState: "bonusReady",
+    pendingBonus: normalPending,
+    coins: 1000,
+  }),
+  reels.evaluateStops(normalEntryRole, [7, 1, 0]),
+  engine.createSequenceRng([0.99]),
+  normalEntryRole,
+);
+if (falseSevenEntry.started || falseSevenEntry.nextState.phase === "bonus") {
+  failed.push(`bonus entry started on non-seven visual line: ${JSON.stringify(falseSevenEntry.stopResult)}`);
+}
+
+const sevenPattern = reels.pickLineStopPattern(normalEntryRole, engine.createSeededRng(1045));
+const slipStops = [null, null, null];
+for (let reel = 0; reel < 3; reel += 1) {
+  const pressedIndex = reels.normalizeIndex(sevenPattern[reel] + 2);
+  const slip = reels.findSlipStop(normalEntryRole, reel, pressedIndex, slipStops, {
+    maxSlipCells: rules.reel.bonusEntrySlipCells,
+  });
+  if (!slip) failed.push(`bonus entry did not allow ${rules.reel.bonusEntrySlipCells}-cell meoshi slip on reel ${reel}`);
+  slipStops[reel] = slip?.stopIndex ?? pressedIndex;
+}
+const slipStart = engine.resolveBonusEntry(
+  engine.initialState({
+    internalState: "bonusReady",
+    pendingBonus: normalPending,
+    coins: 1000,
+  }),
+  reels.evaluateStops(normalEntryRole, slipStops),
+  engine.createSequenceRng([0.99]),
+  normalEntryRole,
+);
+if (!slipStart.started || slipStart.nextState.phase !== "bonus") {
+  failed.push(`bonus entry did not start after in-range meoshi slip: ${JSON.stringify({ sevenPattern, slipStops, stopResult: slipStart.stopResult })}`);
+}
+const noSlipIndex = Array.from({ length: rules.reel.symbolCount }, (_, index) => index)
+  .find((index) => !reels.findSlipStop(normalEntryRole, 0, index, [null, null, null], {
+    maxSlipCells: rules.reel.bonusEntrySlipCells,
+  }));
+if (!Number.isFinite(noSlipIndex)) {
+  failed.push("bonus entry meoshi accepted every reel-0 press; slip window is too wide");
+}
+
 const start = engine.resolveBonusEntry(engine.initialState({
   internalState: "bonusReady",
   pendingBonus: logoPending,

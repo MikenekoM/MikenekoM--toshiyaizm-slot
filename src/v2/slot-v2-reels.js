@@ -27,6 +27,15 @@
     return rules.reel.requiredReels[id] || [0, 1, 2];
   }
 
+  function getRoleSymbol(roleOrId) {
+    const id = typeof roleOrId === "string" ? roleOrId : roleOrId?.id;
+    return rules.reel.roleSymbols?.[id] || id || "";
+  }
+
+  function isDecorativeSymbol(symbol) {
+    return Boolean(symbol) && rules.reel.decorativeSymbols?.includes(symbol);
+  }
+
   function getActiveLines() {
     return Array.isArray(rules.reel.activeLines) && rules.reel.activeLines.length
       ? rules.reel.activeLines
@@ -49,6 +58,11 @@
     return [0, 1, 2].some((row) => getVisibleSymbol(0, reelStops[0], row) === "cherry");
   }
 
+  function getLeftCherryStops() {
+    return Array.from({ length: rules.reel.symbolCount }, (_, index) => index)
+      .filter((index) => [0, 1, 2].some((row) => getVisibleSymbol(0, index, row) === "cherry"));
+  }
+
   function findVisualLine(reelStops = []) {
     for (const line of getActiveLines()) {
       const symbols = line.rows.map((row, reel) => getVisibleSymbol(reel, reelStops[reel], row));
@@ -57,6 +71,51 @@
       }
     }
     return null;
+  }
+
+  function findRoleLine(roleOrId, reelStops = []) {
+    const expectedSymbol = getRoleSymbol(roleOrId);
+    if (!expectedSymbol) return null;
+    for (const line of getActiveLines()) {
+      const symbols = line.rows.map((row, reel) => getVisibleSymbol(reel, reelStops[reel], row));
+      if (symbols.every((symbol) => symbol === expectedSymbol)) {
+        return { id: line.id, label: line.label, rows: line.rows.slice(), symbol: expectedSymbol };
+      }
+    }
+    return null;
+  }
+
+  function findDecorativeLine(reelStops = []) {
+    const line = findVisualLine(reelStops);
+    return line && isDecorativeSymbol(line.symbol) ? line : null;
+  }
+
+  function wouldCompleteDecorativeLine(reelIndex, stopIndex, existingStops = []) {
+    const candidate = [0, 1, 2].map((index) => {
+      if (index === reelIndex) return normalizeIndex(stopIndex);
+      const value = existingStops[index];
+      return value === null || value === undefined ? null : normalizeIndex(value);
+    });
+    if (candidate.some((value) => value === null || value === undefined)) return null;
+    return findDecorativeLine(candidate);
+  }
+
+  function avoidDecorativeLineStop(reelIndex, stopIndex, existingStops = [], options = {}) {
+    const base = normalizeIndex(stopIndex);
+    const baseLine = wouldCompleteDecorativeLine(reelIndex, base, existingStops);
+    if (!baseLine) return { stopIndex: base, adjusted: false, decorativeLine: null };
+    const maxNudgeCells = Math.max(0, Number(options.maxNudgeCells ?? 2));
+    const deltas = [];
+    for (let distance = 1; distance <= maxNudgeCells; distance += 1) {
+      deltas.push(distance, -distance);
+    }
+    for (const delta of deltas) {
+      const candidate = normalizeIndex(base + delta);
+      if (!wouldCompleteDecorativeLine(reelIndex, candidate, existingStops)) {
+        return { stopIndex: candidate, adjusted: true, decorativeLine: baseLine, nudgeCells: delta };
+      }
+    }
+    return { stopIndex: base, adjusted: false, decorativeLine: baseLine };
   }
 
   function hasVisualLine(reelStops = []) {
@@ -87,6 +146,41 @@
   function isCherryRole(roleOrId) {
     const id = typeof roleOrId === "string" ? roleOrId : roleOrId?.id;
     return id === "weakCherry" || id === "strongCherry";
+  }
+
+  function findSlipStop(roleOrId, reelIndex, pressedIndex, existingStops = [], options = {}) {
+    const reel = Number(reelIndex);
+    const actual = normalizeIndex(pressedIndex);
+    const maxSlipCells = Math.max(0, Number(options.maxSlipCells ?? rules.reel.meoshiSlipCells ?? 2));
+    if (!Number.isFinite(reel) || reel < 0 || reel > 2) return null;
+    if (isCherryRole(roleOrId)) {
+      if (reel !== 0) return null;
+      const candidates = getLeftCherryStops().map((stopIndex) => ({
+        stopIndex,
+        distance: distanceCells(actual, stopIndex),
+        line: { id: "left-cherry", label: "左チェリー", rows: [null, null, null], symbol: "cherry" },
+        pattern: [stopIndex, null, null],
+      }));
+      const best = candidates.sort((a, b) => a.distance - b.distance)[0];
+      return best && best.distance <= maxSlipCells
+        ? { ...best, pressedIndex: actual, assisted: best.stopIndex !== actual }
+        : null;
+    }
+
+    const existing = Array.isArray(existingStops) ? existingStops : [];
+    const candidates = getLineStopPatterns(roleOrId).filter((pattern) => existing.every((value, index) => {
+      if (index === reel || value === null || value === undefined) return true;
+      return normalizeIndex(value) === normalizeIndex(pattern[index]);
+    })).map((pattern) => ({
+      stopIndex: normalizeIndex(pattern[reel]),
+      distance: distanceCells(actual, pattern[reel]),
+      line: findRoleLine(roleOrId, pattern),
+      pattern: pattern.map(normalizeIndex),
+    }));
+    const best = candidates.sort((a, b) => a.distance - b.distance)[0];
+    return best && best.distance <= maxSlipCells && best.line
+      ? { ...best, pressedIndex: actual, assisted: best.stopIndex !== actual }
+      : null;
   }
 
   function evaluateStops(role, reelStops = [], options = {}) {
@@ -147,11 +241,15 @@
         best = { ...entry, misses, totalDistance };
       }
     }
-    const success = Boolean(best) && best.misses.every((miss) => miss.distance <= successWindowCells);
+    const lineSuccess = shouldEvaluateActiveLines(role) ? findRoleLine(role, reelStops) : null;
+    const timingSuccess = Boolean(best) && best.misses.every((miss) => miss.distance <= successWindowCells);
+    const success = shouldEvaluateActiveLines(role) ? Boolean(lineSuccess) : timingSuccess;
     return {
       success,
       roleId: role.id,
-      matchedLine: success && best?.line ? { id: best.line.id, label: best.line.label, rows: best.line.rows.slice() } : null,
+      matchedLine: success && lineSuccess
+        ? lineSuccess
+        : success && best?.line ? { id: best.line.id, label: best.line.label, rows: best.line.rows.slice() } : null,
       basePattern: best?.basePattern?.slice() || null,
       matchedPattern: best?.pattern?.slice() || null,
       stopIndexes: reelStops.map(normalizeIndex),
@@ -200,14 +298,22 @@
     getStopPatterns,
     getActiveLines,
     getVisibleSymbol,
+    getRoleSymbol,
+    isDecorativeSymbol,
     leftHasCherry,
+    getLeftCherryStops,
     findVisualLine,
+    findRoleLine,
+    findDecorativeLine,
+    wouldCompleteDecorativeLine,
+    avoidDecorativeLineStop,
     hasVisualLine,
     getLineStopPatterns,
     pickStopPattern,
     pickLineStopPattern,
     pickCherryStopPattern,
     getRequiredReels,
+    findSlipStop,
     evaluateStops,
     buildFailedStops,
     buildNonWinningStops,

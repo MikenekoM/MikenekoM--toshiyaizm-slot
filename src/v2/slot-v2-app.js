@@ -194,6 +194,16 @@
     return engine.isNormalMeoshiPayoutRole?.(role) || rules.normalMeoshiPayoutRoles?.includes(role?.id);
   }
 
+  function isManualMeoshiSpin(spin = currentSpin) {
+    return spin?.kind === "bonusEntry" || (spin?.kind === "normal" && isNormalMeoshiPayoutRole(spin.role));
+  }
+
+  function getMeoshiSlipCells(spin = currentSpin) {
+    return spin?.kind === "bonusEntry"
+      ? Number(rules.reel.bonusEntrySlipCells ?? rules.reel.meoshiSlipCells ?? 3)
+      : Number(rules.reel.meoshiSlipCells ?? 3);
+  }
+
   function shouldFlashRole(role) {
     return role?.id === "watermelon" || role?.cherry;
   }
@@ -356,6 +366,8 @@
       stops: [null, null, null],
       forcedStops: nextForcedStops,
       autoStop: buildAutoStopPattern(kind, role),
+      meoshiSlips: [null, null, null],
+      decorativeNudges: [null, null, null],
     };
     nextForcedStops = null;
     reelStates.forEach((reelState) => {
@@ -409,8 +421,37 @@
     const forced = currentSpin.forcedStops?.[index];
     const autoStop = currentSpin.autoStop?.pattern?.[index];
     let stopIndex = currentReelIndex(index);
-    if (Number.isFinite(Number(autoStop))) stopIndex = Number(autoStop);
-    if (Number.isFinite(Number(forced))) stopIndex = Number(forced);
+    const hasAutoStop = Number.isFinite(Number(autoStop));
+    const hasForcedStop = Number.isFinite(Number(forced));
+    if (hasForcedStop) {
+      stopIndex = Number(forced);
+    } else if (hasAutoStop) {
+      stopIndex = Number(autoStop);
+    } else if (isManualMeoshiSpin(currentSpin)) {
+      const slip = reelsApi.findSlipStop?.(currentSpin.role, index, stopIndex, currentSpin.stops, {
+        maxSlipCells: getMeoshiSlipCells(currentSpin),
+      });
+      if (slip) {
+        stopIndex = slip.stopIndex;
+        currentSpin.meoshiSlips[index] = slip;
+      } else {
+        currentSpin.meoshiSlips[index] = {
+          pressedIndex: reelsApi.normalizeIndex(stopIndex),
+          stopIndex: reelsApi.normalizeIndex(stopIndex),
+          assisted: false,
+          distance: Infinity,
+        };
+      }
+    }
+    if (!hasForcedStop && !hasAutoStop) {
+      const adjusted = reelsApi.avoidDecorativeLineStop?.(index, stopIndex, currentSpin.stops, {
+        maxNudgeCells: 2,
+      });
+      if (adjusted?.adjusted) {
+        stopIndex = adjusted.stopIndex;
+        currentSpin.decorativeNudges[index] = adjusted;
+      }
+    }
     const normalizedStopIndex = reelsApi.normalizeIndex(stopIndex);
     currentSpin.stops[index] = normalizedStopIndex;
     if (reelState) {

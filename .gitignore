@@ -15,6 +15,9 @@ assets/reels/*
 !assets/reels/reel-strip-left-v2.png
 !assets/reels/reel-strip-center-v2.png
 !assets/reels/reel-strip-right-v2.png
+!assets/reels/reel-strip-left-v2b.png
+!assets/reels/reel-strip-center-v2b.png
+!assets/reels/reel-strip-right-v2b.png
 secrets/
 !secrets/
 secrets/*
