@@ -676,7 +676,8 @@ button {
 }
 
 .v2-debug-controls label:nth-child(3),
-.v2-debug-buttons {
+.v2-debug-buttons,
+.v2-meoshi-debug {
   grid-column: 1 / -1;
 }
 
@@ -697,4 +698,24 @@ button {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+.v2-meoshi-debug {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 225, 138, 0.22);
+}
+
+.v2-meoshi-debug > strong,
+.v2-meoshi-debug label:nth-of-type(3),
+.v2-meoshi-debug .v2-debug-buttons {
+  grid-column: 1 / -1;
+}
+
+.v2-meoshi-debug > strong {
+  color: var(--gold-bright);
+  font-size: 12px;
 }

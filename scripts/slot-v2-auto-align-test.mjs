@@ -90,7 +90,6 @@ const globalPatterns = await page.evaluate(() => ({
   bell: window.ToshiyaSlotV2Reels.getLineStopPatterns("bell"),
   replay: window.ToshiyaSlotV2Reels.getLineStopPatterns("replay"),
   watermelon: window.ToshiyaSlotV2Reels.getLineStopPatterns("watermelon"),
-  chance: window.ToshiyaSlotV2Reels.getLineStopPatterns("chance"),
   normal7: window.ToshiyaSlotV2Reels.getLineStopPatterns("normal7"),
 }));
 
@@ -98,6 +97,14 @@ const bellRate = await page.evaluate(() => window.ToshiyaSlotV2Rules.roles.find(
 if (Math.abs(bellRate - 1 / 40) > 0.000001) {
   failed.push(`normal bell probability is not 1/40: ${bellRate}`);
 }
+const meoshiControlIds = await page.evaluate(() => [
+  "v2DebugMeoshiSlip",
+  "v2DebugBonusEntrySlip",
+  "v2DebugMeoshiRole",
+  "v2DebugMeoshiApply",
+  "v2DebugMeoshiForce",
+].filter((id) => !document.getElementById(id)));
+if (meoshiControlIds.length) failed.push(`missing meoshi debug controls: ${meoshiControlIds.join(", ")}`);
 
 let result = await forceRoleSpin("bell", [0]);
 assertRoleAutoAligned("bell", result.during, result.after);
@@ -116,8 +123,17 @@ if (!result.during.roleFlashVisible || result.during.roleFlashRole !== "watermel
 if (result.after.lastPayout !== 6) failed.push(`normal watermelon meoshi success did not pay: ${JSON.stringify(result.after)}`);
 
 result = await forceRoleSpin("chance", [0]);
-assertRoleAutoAligned("chance", result.during, result.after);
-if (!result.during.autoStopAligned || result.after.lastPayout !== 1) failed.push(`normal chance did not resolve internally: ${JSON.stringify(result.after)}`);
+if (!result.during.autoStopPattern || result.during.autoStopAligned) failed.push(`normal chance should use a non-winning visual stop pattern: ${JSON.stringify(result.during)}`);
+if (result.after.lastPayout !== 1) failed.push(`normal chance did not resolve internally: ${JSON.stringify(result.after)}`);
+const chanceStops = result.after.reels.map((reel) => reel.stoppedIndex);
+const chanceVisual = await page.evaluate((stops) => ({
+  visualLine: window.ToshiyaSlotV2Reels.findVisualLine(stops),
+  forbiddenLine: window.ToshiyaSlotV2Reels.findNormalForbiddenLine(stops),
+  leftCherry: window.ToshiyaSlotV2Reels.leftHasCherry(stops),
+}), chanceStops);
+if (chanceVisual.visualLine || chanceVisual.forbiddenLine || chanceVisual.leftCherry) {
+  failed.push(`normal chance showed an accidental role shape: ${JSON.stringify(chanceVisual)} stops=${JSON.stringify(chanceStops)}`);
+}
 
 result = await forceRoleSpin("strongCherry", [0], { forceSuccess: true });
 if (result.during.autoStopPattern || result.during.autoStopAligned !== null) failed.push("strong cherry should not auto-stop because payout is meoshi-based");
@@ -125,6 +141,16 @@ if (!result.during.roleFlashVisible || result.during.roleFlashRole !== "strongCh
 const strongStops = result.after.reels.map((reel) => reel.stoppedIndex);
 const strongLeftCherry = await page.evaluate((stops) => window.ToshiyaSlotV2Reels.leftHasCherry(stops), strongStops);
 if (!strongLeftCherry || result.after.lastPayout !== 2) failed.push(`strong cherry did not pay from left reel only: ${JSON.stringify(result.after)}`);
+const strongWrongCherry = await page.evaluate((stops) => window.ToshiyaSlotV2Reels.findWrongCherryStop("strongCherry", stops[0]), strongStops);
+if (strongWrongCherry) failed.push(`strong cherry stopped on a corner cherry row: ${JSON.stringify({ strongStops, strongWrongCherry })}`);
+
+result = await forceRoleSpin("weakCherry", [0], { forceSuccess: true });
+const weakStops = result.after.reels.map((reel) => reel.stoppedIndex);
+const weakLeftCherry = await page.evaluate((stops) => window.ToshiyaSlotV2Reels.leftHasRoleCherry("weakCherry", stops), weakStops);
+const weakWrongCherry = await page.evaluate((stops) => window.ToshiyaSlotV2Reels.findWrongCherryStop("weakCherry", stops[0]), weakStops);
+if (!weakLeftCherry || weakWrongCherry || result.after.lastPayout !== 2) {
+  failed.push(`weak cherry did not pay from corner left cherry only: ${JSON.stringify({ after: result.after, weakStops, weakLeftCherry, weakWrongCherry })}`);
+}
 
 const strongMissStops = await page.evaluate(() => {
   const role = window.ToshiyaSlotV2Rules.roles.find((item) => item.id === "strongCherry");
@@ -146,6 +172,35 @@ const blankVisual = await page.evaluate((stops) => ({
 }), blankStops);
 if (!result.during.autoStopPattern || result.during.autoStopAligned) failed.push("blank did not use internal miss stop pattern");
 if (blankVisual.visualLine || blankVisual.leftCherry) failed.push(`blank showed an accidental role shape: ${JSON.stringify(blankVisual)} stops=${JSON.stringify(blankStops)}`);
+
+const tuning = JSON.parse(await page.evaluate(() => window.__toshiyaSlotV2Test.setMeoshiTuning({
+  meoshiSlipCells: 3,
+  bonusEntrySlipCells: 4,
+})));
+if (tuning.meoshiTuning?.meoshiSlipCells !== 3 || tuning.meoshiTuning?.bonusEntrySlipCells !== 4) {
+  failed.push(`meoshi tuning debug API did not apply values: ${JSON.stringify(tuning.meoshiTuning)}`);
+}
+
+await resetPage();
+await page.fill("#v2DebugMeoshiSlip", "1");
+await page.fill("#v2DebugBonusEntrySlip", "5");
+await page.click("#v2DebugMeoshiApply");
+const debugApplied = await state();
+if (debugApplied.meoshiTuning?.meoshiSlipCells !== 1 || debugApplied.meoshiTuning?.bonusEntrySlipCells !== 5) {
+  failed.push(`meoshi tuning controls did not apply values: ${JSON.stringify(debugApplied.meoshiTuning)}`);
+}
+await page.selectOption("#v2DebugMeoshiRole", "strongCherry");
+await page.click("#v2DebugMeoshiForce");
+await page.keyboard.press("Space");
+await page.waitForTimeout(80);
+const debugForced = await state();
+if (debugForced.currentRole !== "strongCherry" || debugForced.spinKind !== "normal") {
+  failed.push(`meoshi debug role force did not start strong cherry spin: ${JSON.stringify(debugForced)}`);
+}
+await page.keyboard.press("KeyZ");
+await page.keyboard.press("KeyX");
+await page.keyboard.press("KeyC");
+await page.waitForTimeout(120);
 
 await page.screenshot({ path: path.join(root, "tmp", "slot-v2-auto-align-test.png"), fullPage: false });
 await browser.close();

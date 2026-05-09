@@ -113,6 +113,31 @@
               <button type="button" id="v2DebugApply">反映</button>
               <button type="button" id="v2DebugReset">初期化</button>
             </div>
+            <div class="v2-meoshi-debug" aria-label="目押し調整">
+              <strong>目押し調整</strong>
+              <label>
+                <span>通常スベリ</span>
+                <input id="v2DebugMeoshiSlip" type="number" min="0" max="6" step="1" value="2">
+              </label>
+              <label>
+                <span>7狙いスベリ</span>
+                <input id="v2DebugBonusEntrySlip" type="number" min="0" max="6" step="1" value="2">
+              </label>
+              <label>
+                <span>テスト役</span>
+                <select id="v2DebugMeoshiRole">
+                  <option value="watermelon">スイカ</option>
+                  <option value="weakCherry">角チェリー</option>
+                  <option value="strongCherry">中段チェリー</option>
+                  <option value="normal7">通常7揃い</option>
+                  <option value="toshiyaLogo">トシヤロゴ揃い</option>
+                </select>
+              </label>
+              <div class="v2-debug-buttons">
+                <button type="button" id="v2DebugMeoshiApply">調整反映</button>
+                <button type="button" id="v2DebugMeoshiForce">役セット</button>
+              </div>
+            </div>
           </div>
         </section>
       </aside>

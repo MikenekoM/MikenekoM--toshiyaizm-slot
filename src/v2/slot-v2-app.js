@@ -30,6 +30,11 @@
     debugCoins: document.querySelector("#v2DebugCoins"),
     debugApply: document.querySelector("#v2DebugApply"),
     debugReset: document.querySelector("#v2DebugReset"),
+    debugMeoshiSlip: document.querySelector("#v2DebugMeoshiSlip"),
+    debugBonusEntrySlip: document.querySelector("#v2DebugBonusEntrySlip"),
+    debugMeoshiRole: document.querySelector("#v2DebugMeoshiRole"),
+    debugMeoshiApply: document.querySelector("#v2DebugMeoshiApply"),
+    debugMeoshiForce: document.querySelector("#v2DebugMeoshiForce"),
   };
 
   const scenePlayer = scenePlayerFactory.create({
@@ -38,6 +43,10 @@
   });
   let rng = Math.random;
   let state = loadState();
+  let meoshiTuning = {
+    meoshiSlipCells: Number(rules.reel.meoshiSlipCells ?? 2),
+    bonusEntrySlipCells: Number(rules.reel.bonusEntrySlipCells ?? rules.reel.meoshiSlipCells ?? 2),
+  };
   let currentSpin = null;
   let nextForcedRoleId = null;
   let nextForcedStops = null;
@@ -200,8 +209,24 @@
 
   function getMeoshiSlipCells(spin = currentSpin) {
     return spin?.kind === "bonusEntry"
-      ? Number(rules.reel.bonusEntrySlipCells ?? rules.reel.meoshiSlipCells ?? 3)
-      : Number(rules.reel.meoshiSlipCells ?? 3);
+      ? Number(meoshiTuning.bonusEntrySlipCells ?? rules.reel.bonusEntrySlipCells ?? rules.reel.meoshiSlipCells ?? 3)
+      : Number(meoshiTuning.meoshiSlipCells ?? rules.reel.meoshiSlipCells ?? 3);
+  }
+
+  function getLineBlockSymbolsForSpin(spinOrKind = currentSpin) {
+    const kind = typeof spinOrKind === "string" ? spinOrKind : spinOrKind?.kind;
+    const symbols = [...(rules.reel.decorativeSymbols || [])];
+    if (kind !== "bonusEntry") symbols.push(...(rules.reel.normalForbiddenLineSymbols || []));
+    return [...new Set(symbols.filter(Boolean))];
+  }
+
+  function pickSafeLineStopPattern(role, kind) {
+    const blockedSymbols = getLineBlockSymbolsForSpin(kind);
+    for (let attempt = 0; attempt < 48; attempt += 1) {
+      const pattern = reelsApi.pickLineStopPattern(role, rng);
+      if (!reelsApi.findLineBySymbols?.(pattern, blockedSymbols)) return pattern;
+    }
+    return reelsApi.pickLineStopPattern(role, rng);
   }
 
   function shouldFlashRole(role) {
@@ -266,7 +291,7 @@
   function buildAutoStopPattern(kind, role) {
     if (kind === "bonusGame") {
       return {
-        pattern: reelsApi.pickLineStopPattern(role, rng),
+        pattern: pickSafeLineStopPattern(role, kind),
         aligned: true,
       };
     }
@@ -277,21 +302,27 @@
         aligned: false,
       };
     }
+    if (role?.id === "chance") {
+      return {
+        pattern: reelsApi.buildNonWinningStops(rng),
+        aligned: false,
+      };
+    }
     if (role?.id === "replay") {
       return {
-        pattern: reelsApi.pickLineStopPattern(role, rng),
+        pattern: pickSafeLineStopPattern(role, kind),
         aligned: true,
       };
     }
     if (role?.id === "bell") {
       return {
-        pattern: reelsApi.pickLineStopPattern(role, rng),
+        pattern: pickSafeLineStopPattern(role, kind),
         aligned: true,
       };
     }
     if (isNormalMeoshiPayoutRole(role)) return null;
     return {
-      pattern: reelsApi.pickLineStopPattern(role, rng),
+      pattern: pickSafeLineStopPattern(role, kind),
       aligned: true,
     };
   }
@@ -430,6 +461,7 @@
     } else if (isManualMeoshiSpin(currentSpin)) {
       const slip = reelsApi.findSlipStop?.(currentSpin.role, index, stopIndex, currentSpin.stops, {
         maxSlipCells: getMeoshiSlipCells(currentSpin),
+        forbiddenLineSymbols: getLineBlockSymbolsForSpin(currentSpin),
       });
       if (slip) {
         stopIndex = slip.stopIndex;
@@ -444,7 +476,15 @@
       }
     }
     if (!hasForcedStop && !hasAutoStop) {
-      const adjusted = reelsApi.avoidDecorativeLineStop?.(index, stopIndex, currentSpin.stops, {
+      const wrongCherryAdjusted = reelsApi.avoidWrongCherryStop?.(currentSpin.role, index, stopIndex, currentSpin.stops, {
+        maxNudgeCells: 2,
+        avoidRoleCherry: true,
+      });
+      if (wrongCherryAdjusted?.adjusted) {
+        stopIndex = wrongCherryAdjusted.stopIndex;
+        currentSpin.decorativeNudges[index] = wrongCherryAdjusted;
+      }
+      const adjusted = reelsApi.avoidLineBySymbolsStop?.(index, stopIndex, currentSpin.stops, getLineBlockSymbolsForSpin(currentSpin), {
         maxNudgeCells: 2,
       });
       if (adjusted?.adjusted) {
@@ -562,6 +602,75 @@
     return engine.drawPendingBonus(rng, "strongCherry");
   }
 
+  function makeDebugPendingForEntry(entrySymbol) {
+    const entry = rules.entrySymbols.find((item) => item.id === entrySymbol) || rules.entrySymbols[0];
+    const pending = engine.drawPendingBonus(rng, entry.premium ? "chance" : null);
+    return {
+      ...pending,
+      entrySymbol: entry.id,
+      entryName: entry.name,
+      premium: Boolean(entry.premium),
+    };
+  }
+
+  function clampSlipCells(value, fallback) {
+    const parsed = Math.floor(Number(value));
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(0, Math.min(6, parsed));
+  }
+
+  function applyMeoshiTuning(options = {}) {
+    meoshiTuning = {
+      meoshiSlipCells: clampSlipCells(dom.debugMeoshiSlip?.value, meoshiTuning.meoshiSlipCells),
+      bonusEntrySlipCells: clampSlipCells(dom.debugBonusEntrySlip?.value, meoshiTuning.bonusEntrySlipCells),
+    };
+    if (!options.silent) state = { ...state, lastMessage: `目押し調整: 通常${meoshiTuning.meoshiSlipCells}コマ / 7狙い${meoshiTuning.bonusEntrySlipCells}コマ。` };
+    render();
+    return meoshiTuning;
+  }
+
+  function forceDebugMeoshiRole() {
+    applyMeoshiTuning({ silent: true });
+    stopReelLoop();
+    hideRoleFlash();
+    currentSpin = null;
+    judgeRunning = false;
+    const roleId = dom.debugMeoshiRole?.value || "watermelon";
+    const entryRole = rules.entrySymbols.find((entry) => entry.id === roleId);
+    if (entryRole) {
+      state = engine.normalizeState({
+        ...state,
+        phase: "normal",
+        internalState: "bonusReady",
+        pendingBonus: makeDebugPendingForEntry(roleId),
+        bonus: null,
+        preludeRemaining: 0,
+        lastMessage: `デバッグ: ${entryRole.name}の目押しターン。`,
+      });
+      nextForcedRoleId = null;
+      setReelStops(reelsApi.buildNonWinningStops(rng));
+      saveState();
+      playSceneForState();
+      render();
+      return;
+    }
+    const role = roleById(roleId);
+    state = engine.normalizeState({
+      ...state,
+      phase: "normal",
+      internalState: "normal",
+      pendingBonus: null,
+      bonus: null,
+      preludeRemaining: 0,
+      lastMessage: `デバッグ: 次ゲームを${role?.name || roleId}に固定。`,
+    });
+    nextForcedRoleId = roleId;
+    setReelStops(reelsApi.buildNonWinningStops(rng));
+    saveState();
+    playSceneForState();
+    render();
+  }
+
   function playSceneForState() {
     if (state.phase === "bonus") {
       const scene = scenes.pickBonusGameScene((state.bonus?.gamesInSet || 0) + 1);
@@ -652,6 +761,12 @@
     }
     if (dom.debugCoins && document.activeElement !== dom.debugCoins) {
       dom.debugCoins.value = String(state.coins);
+    }
+    if (dom.debugMeoshiSlip && document.activeElement !== dom.debugMeoshiSlip) {
+      dom.debugMeoshiSlip.value = String(meoshiTuning.meoshiSlipCells);
+    }
+    if (dom.debugBonusEntrySlip && document.activeElement !== dom.debugBonusEntrySlip) {
+      dom.debugBonusEntrySlip.value = String(meoshiTuning.bonusEntrySlipCells);
     }
   }
 
@@ -754,6 +869,7 @@
       judgeRunning,
       roleFlashVisible: Boolean(dom.roleFlash && !dom.roleFlash.hidden && dom.roleFlash.classList.contains("is-visible")),
       roleFlashRole: dom.roleFlash?.dataset.role || null,
+      meoshiTuning: { ...meoshiTuning },
       reels: getReelDebug(),
     });
   }
@@ -764,6 +880,8 @@
   });
   dom.debugApply?.addEventListener("click", applyDebugState);
   dom.debugReset?.addEventListener("click", resetDebugState);
+  dom.debugMeoshiApply?.addEventListener("click", () => applyMeoshiTuning());
+  dom.debugMeoshiForce?.addEventListener("click", forceDebugMeoshiRole);
   document.addEventListener("keydown", (event) => {
     if (event.code === "Space" || event.code === "ShiftLeft") {
       event.preventDefault();
@@ -832,6 +950,12 @@
       if (dom.debugStage && data.normalStage) dom.debugStage.value = data.normalStage;
       if (dom.debugCoins && Number.isFinite(Number(data.coins))) dom.debugCoins.value = String(Number(data.coins));
       applyDebugState();
+      return renderGameToText();
+    },
+    setMeoshiTuning(data = {}) {
+      if (dom.debugMeoshiSlip && Number.isFinite(Number(data.meoshiSlipCells))) dom.debugMeoshiSlip.value = String(Number(data.meoshiSlipCells));
+      if (dom.debugBonusEntrySlip && Number.isFinite(Number(data.bonusEntrySlipCells))) dom.debugBonusEntrySlip.value = String(Number(data.bonusEntrySlipCells));
+      applyMeoshiTuning({ silent: true });
       return renderGameToText();
     },
   };

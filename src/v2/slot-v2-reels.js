@@ -32,8 +32,16 @@
     return rules.reel.roleSymbols?.[id] || id || "";
   }
 
+  function getDecorativeSymbols() {
+    return Array.isArray(rules.reel.decorativeSymbols) ? rules.reel.decorativeSymbols : [];
+  }
+
+  function getNormalForbiddenLineSymbols() {
+    return Array.isArray(rules.reel.normalForbiddenLineSymbols) ? rules.reel.normalForbiddenLineSymbols : [];
+  }
+
   function isDecorativeSymbol(symbol) {
-    return Boolean(symbol) && rules.reel.decorativeSymbols?.includes(symbol);
+    return Boolean(symbol) && getDecorativeSymbols().includes(symbol);
   }
 
   function getActiveLines() {
@@ -58,9 +66,57 @@
     return [0, 1, 2].some((row) => getVisibleSymbol(0, reelStops[0], row) === "cherry");
   }
 
-  function getLeftCherryStops() {
+  function getCherryRows(roleOrId = null) {
+    const id = typeof roleOrId === "string" ? roleOrId : roleOrId?.id;
+    if (id === "strongCherry") return [1];
+    if (id === "weakCherry") return [0, 2];
+    return [0, 1, 2];
+  }
+
+  function leftHasRoleCherry(roleOrId, reelStops = []) {
+    const rows = getCherryRows(roleOrId);
+    return rows.some((row) => getVisibleSymbol(0, reelStops[0], row) === "cherry");
+  }
+
+  function getLeftCherryStops(roleOrId = null) {
+    const rows = getCherryRows(roleOrId);
     return Array.from({ length: rules.reel.symbolCount }, (_, index) => index)
-      .filter((index) => [0, 1, 2].some((row) => getVisibleSymbol(0, index, row) === "cherry"));
+      .filter((index) => rows.some((row) => getVisibleSymbol(0, index, row) === "cherry"));
+  }
+
+  function findWrongCherryStop(roleOrId, stopIndex) {
+    if (!isCherryRole(roleOrId)) return null;
+    const allowedRows = new Set(getCherryRows(roleOrId));
+    const rows = [0, 1, 2].filter((row) => (
+      getVisibleSymbol(0, stopIndex, row) === "cherry" && !allowedRows.has(row)
+    ));
+    return rows.length
+      ? { id: "wrong-left-cherry", label: "別行チェリー", rows, symbol: "cherry" }
+      : null;
+  }
+
+  function avoidWrongCherryStop(roleOrId, reelIndex, stopIndex, existingStops = [], options = {}) {
+    const base = normalizeIndex(stopIndex);
+    if (Number(reelIndex) !== 0 || !isCherryRole(roleOrId)) {
+      return { stopIndex: base, adjusted: false, wrongCherry: null };
+    }
+    const baseWrong = findWrongCherryStop(roleOrId, base, existingStops);
+    if (!baseWrong) return { stopIndex: base, adjusted: false, wrongCherry: null };
+    const maxNudgeCells = Math.max(0, Number(options.maxNudgeCells ?? 2));
+    const deltas = [];
+    for (let distance = 1; distance <= maxNudgeCells; distance += 1) {
+      deltas.push(distance, -distance);
+    }
+    for (const delta of deltas) {
+      const candidate = normalizeIndex(base + delta);
+      if (
+        !findWrongCherryStop(roleOrId, candidate) &&
+        (!options.avoidRoleCherry || !leftHasRoleCherry(roleOrId, [candidate, null, null]))
+      ) {
+        return { stopIndex: candidate, adjusted: true, wrongCherry: baseWrong, nudgeCells: delta };
+      }
+    }
+    return { stopIndex: base, adjusted: false, wrongCherry: baseWrong };
   }
 
   function findVisualLine(reelStops = []) {
@@ -68,6 +124,22 @@
       const symbols = line.rows.map((row, reel) => getVisibleSymbol(reel, reelStops[reel], row));
       if (symbols.every(Boolean) && symbols.every((symbol) => symbol === symbols[0])) {
         return { id: line.id, label: line.label, rows: line.rows.slice(), symbol: symbols[0] };
+      }
+    }
+    return null;
+  }
+
+  function findLineBySymbols(reelStops = [], symbols = []) {
+    const blocked = new Set((Array.isArray(symbols) ? symbols : []).filter(Boolean));
+    if (!blocked.size) return null;
+    for (const line of getActiveLines()) {
+      const lineSymbols = line.rows.map((row, reel) => getVisibleSymbol(reel, reelStops[reel], row));
+      if (
+        lineSymbols.every(Boolean) &&
+        lineSymbols.every((symbol) => symbol === lineSymbols[0]) &&
+        blocked.has(lineSymbols[0])
+      ) {
+        return { id: line.id, label: line.label, rows: line.rows.slice(), symbol: lineSymbols[0] };
       }
     }
     return null;
@@ -86,24 +158,32 @@
   }
 
   function findDecorativeLine(reelStops = []) {
-    const line = findVisualLine(reelStops);
-    return line && isDecorativeSymbol(line.symbol) ? line : null;
+    return findLineBySymbols(reelStops, getDecorativeSymbols());
   }
 
-  function wouldCompleteDecorativeLine(reelIndex, stopIndex, existingStops = []) {
+  function findNormalForbiddenLine(reelStops = []) {
+    return findLineBySymbols(reelStops, getNormalForbiddenLineSymbols());
+  }
+
+  function wouldCompleteLineBySymbols(reelIndex, stopIndex, existingStops = [], symbols = []) {
     const candidate = [0, 1, 2].map((index) => {
       if (index === reelIndex) return normalizeIndex(stopIndex);
       const value = existingStops[index];
       return value === null || value === undefined ? null : normalizeIndex(value);
     });
     if (candidate.some((value) => value === null || value === undefined)) return null;
-    return findDecorativeLine(candidate);
+    return findLineBySymbols(candidate, symbols);
   }
 
-  function avoidDecorativeLineStop(reelIndex, stopIndex, existingStops = [], options = {}) {
+  function wouldCompleteDecorativeLine(reelIndex, stopIndex, existingStops = []) {
+    return wouldCompleteLineBySymbols(reelIndex, stopIndex, existingStops, getDecorativeSymbols());
+  }
+
+  function avoidLineBySymbolsStop(reelIndex, stopIndex, existingStops = [], symbols = [], options = {}) {
     const base = normalizeIndex(stopIndex);
-    const baseLine = wouldCompleteDecorativeLine(reelIndex, base, existingStops);
-    if (!baseLine) return { stopIndex: base, adjusted: false, decorativeLine: null };
+    const blockedSymbols = Array.isArray(symbols) ? symbols : [];
+    const baseLine = wouldCompleteLineBySymbols(reelIndex, base, existingStops, blockedSymbols);
+    if (!baseLine) return { stopIndex: base, adjusted: false, blockedLine: null };
     const maxNudgeCells = Math.max(0, Number(options.maxNudgeCells ?? 2));
     const deltas = [];
     for (let distance = 1; distance <= maxNudgeCells; distance += 1) {
@@ -111,11 +191,20 @@
     }
     for (const delta of deltas) {
       const candidate = normalizeIndex(base + delta);
-      if (!wouldCompleteDecorativeLine(reelIndex, candidate, existingStops)) {
-        return { stopIndex: candidate, adjusted: true, decorativeLine: baseLine, nudgeCells: delta };
+      if (!wouldCompleteLineBySymbols(reelIndex, candidate, existingStops, blockedSymbols)) {
+        return { stopIndex: candidate, adjusted: true, blockedLine: baseLine, nudgeCells: delta };
       }
     }
-    return { stopIndex: base, adjusted: false, decorativeLine: baseLine };
+    return { stopIndex: base, adjusted: false, blockedLine: baseLine };
+  }
+
+  function avoidDecorativeLineStop(reelIndex, stopIndex, existingStops = [], options = {}) {
+    const result = avoidLineBySymbolsStop(reelIndex, stopIndex, existingStops, getDecorativeSymbols(), options);
+    return { ...result, decorativeLine: result.blockedLine || null };
+  }
+
+  function avoidNormalForbiddenLineStop(reelIndex, stopIndex, existingStops = [], options = {}) {
+    return avoidLineBySymbolsStop(reelIndex, stopIndex, existingStops, getNormalForbiddenLineSymbols(), options);
   }
 
   function hasVisualLine(reelStops = []) {
@@ -155,7 +244,7 @@
     if (!Number.isFinite(reel) || reel < 0 || reel > 2) return null;
     if (isCherryRole(roleOrId)) {
       if (reel !== 0) return null;
-      const candidates = getLeftCherryStops().map((stopIndex) => ({
+      const candidates = getLeftCherryStops(roleOrId).map((stopIndex) => ({
         stopIndex,
         distance: distanceCells(actual, stopIndex),
         line: { id: "left-cherry", label: "左チェリー", rows: [null, null, null], symbol: "cherry" },
@@ -168,10 +257,11 @@
     }
 
     const existing = Array.isArray(existingStops) ? existingStops : [];
+    const forbiddenLineSymbols = Array.isArray(options.forbiddenLineSymbols) ? options.forbiddenLineSymbols : [];
     const candidates = getLineStopPatterns(roleOrId).filter((pattern) => existing.every((value, index) => {
       if (index === reel || value === null || value === undefined) return true;
       return normalizeIndex(value) === normalizeIndex(pattern[index]);
-    })).map((pattern) => ({
+    })).filter((pattern) => !findLineBySymbols(pattern, forbiddenLineSymbols)).map((pattern) => ({
       stopIndex: normalizeIndex(pattern[reel]),
       distance: distanceCells(actual, pattern[reel]),
       line: findRoleLine(roleOrId, pattern),
@@ -196,7 +286,7 @@
       };
     }
     if (isCherryRole(role)) {
-      const matchedRow = [0, 1, 2].find((row) => getVisibleSymbol(0, reelStops[0], row) === "cherry");
+      const matchedRow = getCherryRows(role).find((row) => getVisibleSymbol(0, reelStops[0], row) === "cherry");
       const success = Number.isFinite(matchedRow);
       const basePatterns = getStopPatterns(role);
       return {
@@ -287,7 +377,7 @@
     for (let attempt = 0; attempt < 96; attempt += 1) {
       const rest = buildNonWinningStops(rng, { allowLeftCherry: true });
       const candidate = [leftPattern[0], rest[1], rest[2]].map(normalizeIndex);
-      if (leftHasCherry(candidate) && !hasVisualLine(candidate)) return candidate;
+      if (leftHasRoleCherry(roleOrId, candidate) && !findWrongCherryStop(roleOrId, candidate[0]) && !hasVisualLine(candidate)) return candidate;
     }
     return leftPattern.slice();
   }
@@ -299,14 +389,25 @@
     getActiveLines,
     getVisibleSymbol,
     getRoleSymbol,
+    getDecorativeSymbols,
+    getNormalForbiddenLineSymbols,
     isDecorativeSymbol,
     leftHasCherry,
+    leftHasRoleCherry,
+    getCherryRows,
     getLeftCherryStops,
+    findWrongCherryStop,
+    avoidWrongCherryStop,
     findVisualLine,
+    findLineBySymbols,
     findRoleLine,
     findDecorativeLine,
+    findNormalForbiddenLine,
+    wouldCompleteLineBySymbols,
     wouldCompleteDecorativeLine,
+    avoidLineBySymbolsStop,
     avoidDecorativeLineStop,
+    avoidNormalForbiddenLineStop,
     hasVisualLine,
     getLineStopPatterns,
     pickStopPattern,

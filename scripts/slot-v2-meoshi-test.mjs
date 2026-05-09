@@ -64,7 +64,7 @@ for (const item of lineResults) {
 const bellMiss = reels.evaluateStops(bell, reels.buildFailedStops(bell, engine.createSeededRng(41)));
 if (bellMiss.success) failed.push(`buildFailedStops produced a bell payline: ${JSON.stringify(bellMiss)}`);
 
-const visualRoleIds = ["bell", "replay", "watermelon", "chance", "normal7", "toshiyaLogo"];
+const visualRoleIds = ["bell", "replay", "watermelon", "normal7", "toshiyaLogo"];
 const roleAlignmentResults = visualRoleIds.map((roleId) => {
   const role = rules.roles.find((item) => item.id === roleId) || { id: roleId, targetable: true };
   const patterns = reels.getLineStopPatterns(roleId).map((pattern) => ({
@@ -83,6 +83,29 @@ for (const item of roleAlignmentResults) {
     if (!pattern.result.success || pattern.result.matchedLine?.symbol !== item.expectedSymbol) {
       failed.push(`${item.roleId} pattern did not evaluate as displayed role line: ${JSON.stringify(pattern.result)}`);
     }
+  }
+}
+
+const chance = rules.roles.find((role) => role.id === "chance");
+const logoLine = reels.pickLineStopPattern("toshiyaLogo", engine.createSeededRng(77));
+const chanceOnLogo = reels.evaluateStops(chance, logoLine);
+if (chanceOnLogo.success) {
+  failed.push(`chance paid on logo line: ${JSON.stringify(chanceOnLogo)}`);
+}
+if (reels.findNormalForbiddenLine(logoLine)?.symbol !== "logo") {
+  failed.push(`logo line was not detected as normal-forbidden: ${JSON.stringify(logoLine)}`);
+}
+const sevenLine = reels.pickLineStopPattern("normal7", engine.createSeededRng(78));
+if (reels.findNormalForbiddenLine(sevenLine)?.symbol !== "seven") {
+  failed.push(`seven line was not detected as normal-forbidden: ${JSON.stringify(sevenLine)}`);
+}
+const avoidLogoLine = reels.avoidNormalForbiddenLineStop(2, logoLine[2], [logoLine[0], logoLine[1], null]);
+if (!avoidLogoLine.adjusted || reels.findNormalForbiddenLine([logoLine[0], logoLine[1], avoidLogoLine.stopIndex])) {
+  failed.push(`normal-forbidden logo line was not nudged away: ${JSON.stringify({ logoLine, avoidLogoLine })}`);
+}
+for (const pattern of reels.getLineStopPatterns("chance")) {
+  if (reels.findNormalForbiddenLine(pattern)) {
+    failed.push(`chance stop pattern still shows a forbidden logo line: ${JSON.stringify(pattern)}`);
   }
 }
 
@@ -120,6 +143,42 @@ const oldWatermelonFalseLine = reels.evaluateStops(
 );
 if (oldWatermelonFalseLine.success) {
   failed.push(`watermelon paid on non-watermelon visual line: ${JSON.stringify(oldWatermelonFalseLine)}`);
+}
+
+const weakCherry = rules.roles.find((role) => role.id === "weakCherry");
+const weakTop = reels.evaluateStops(weakCherry, [7, 0, 0]);
+const weakMiddle = reels.evaluateStops(weakCherry, [6, 0, 0]);
+const weakBottom = reels.evaluateStops(weakCherry, [5, 0, 0]);
+if (!weakTop.success || !weakBottom.success) {
+  failed.push(`weak cherry did not pay on corner rows: ${JSON.stringify({ weakTop, weakBottom })}`);
+}
+if (weakMiddle.success) {
+  failed.push(`weak cherry paid on middle row: ${JSON.stringify(weakMiddle)}`);
+}
+const strongMiddle = reels.evaluateStops(strong, [6, 0, 0]);
+const strongTop = reels.evaluateStops(strong, [7, 0, 0]);
+const strongBottom = reels.evaluateStops(strong, [5, 0, 0]);
+if (!strongMiddle.success) {
+  failed.push(`strong cherry did not pay on middle row: ${JSON.stringify(strongMiddle)}`);
+}
+if (strongTop.success || strongBottom.success) {
+  failed.push(`strong cherry paid on corner row: ${JSON.stringify({ strongTop, strongBottom })}`);
+}
+const weakSlipFromMiddle = reels.findSlipStop(weakCherry, 0, 6, [null, null, null], { maxSlipCells: 2 });
+if (!weakSlipFromMiddle || reels.findWrongCherryStop(weakCherry, weakSlipFromMiddle.stopIndex)) {
+  failed.push(`weak cherry slip stayed on middle cherry: ${JSON.stringify(weakSlipFromMiddle)}`);
+}
+const strongSlipFromCorner = reels.findSlipStop(strong, 0, 7, [null, null, null], { maxSlipCells: 2 });
+if (!strongSlipFromCorner || reels.findWrongCherryStop(strong, strongSlipFromCorner.stopIndex)) {
+  failed.push(`strong cherry slip stayed on corner cherry: ${JSON.stringify(strongSlipFromCorner)}`);
+}
+const avoidWrongWeak = reels.avoidWrongCherryStop(weakCherry, 0, 6, [null, null, null], { maxNudgeCells: 2, avoidRoleCherry: true });
+if (!avoidWrongWeak.adjusted || reels.findWrongCherryStop(weakCherry, avoidWrongWeak.stopIndex) || reels.leftHasRoleCherry(weakCherry, [avoidWrongWeak.stopIndex, null, null])) {
+  failed.push(`weak cherry wrong middle row was not nudged away: ${JSON.stringify(avoidWrongWeak)}`);
+}
+const avoidWrongStrong = reels.avoidWrongCherryStop(strong, 0, 7, [null, null, null], { maxNudgeCells: 2, avoidRoleCherry: true });
+if (!avoidWrongStrong.adjusted || reels.findWrongCherryStop(strong, avoidWrongStrong.stopIndex) || reels.leftHasRoleCherry(strong, [avoidWrongStrong.stopIndex, null, null])) {
+  failed.push(`strong cherry wrong corner row was not nudged away: ${JSON.stringify(avoidWrongStrong)}`);
 }
 
 function findDecorativeExample(symbol) {
@@ -172,5 +231,5 @@ if (reels.findVisualLine(nonWinningStops) || reels.leftHasCherry(nonWinningStops
   failed.push(`non-winning stops showed a visual win: ${JSON.stringify({ nonWinningStops, line: reels.findVisualLine(nonWinningStops), leftCherry: reels.leftHasCherry(nonWinningStops) })}`);
 }
 
-console.log(JSON.stringify({ failed, successEvent, visualMissEvent, replaySuccess, replayMiss, lineResults, bellMiss, roleAlignmentResults, oldWatermelonFalseLine, decorativeExamples, avoidFaceLine, nonWinningStops }, null, 2));
+console.log(JSON.stringify({ failed, successEvent, visualMissEvent, replaySuccess, replayMiss, lineResults, bellMiss, roleAlignmentResults, chanceOnLogo, logoLine, avoidLogoLine, oldWatermelonFalseLine, weakTop, weakMiddle, weakBottom, strongMiddle, strongTop, strongBottom, decorativeExamples, avoidFaceLine, nonWinningStops }, null, 2));
 if (failed.length) process.exitCode = 1;
