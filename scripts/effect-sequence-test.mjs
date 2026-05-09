@@ -50,6 +50,12 @@ async function spinWithSequence(name, sequence, state = {}) {
   await page.keyboard.press("KeyZ");
   await page.keyboard.press("KeyX");
   await page.keyboard.press("KeyC");
+  await page.waitForFunction(() => {
+    const stateText = window.render_game_to_text?.();
+    if (!stateText) return false;
+    const state = JSON.parse(stateText);
+    return state.ambientVideoPlaying && !state.ambientVideoPendingId;
+  }, null, { timeout: 3000 }).catch(() => {});
   const result = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
   const topText = await page.locator("#topEffect strong").innerText();
   const screenText = await page.locator("#effectScreen").innerText();

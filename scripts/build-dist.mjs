@@ -7,12 +7,20 @@ const dist = path.join(root, "dist");
 
 const requiredFiles = [
   "index.html",
+  "v2.html",
   "src/styles.css",
   "src/slot-rules.js",
   "src/slot-engine.js",
   "src/slot-effects.js",
   "src/slot-audio.js",
   "src/app.js",
+  "src/v2/slot-v2.css",
+  "src/v2/slot-v2-rules.js",
+  "src/v2/slot-v2-engine.js",
+  "src/v2/slot-v2-reels.js",
+  "src/v2/slot-v2-scenes.js",
+  "src/v2/slot-v2-scene-player.js",
+  "src/v2/slot-v2-app.js",
   "src/aikotoba.js",
   "src/comment-data.js",
   "src/shop-data.js",
@@ -21,6 +29,11 @@ const requiredFiles = [
   "assets/reels/reel-strip-left-v2.png",
   "assets/reels/reel-strip-center-v2.png",
   "assets/reels/reel-strip-right-v2.png",
+  "assets/videos/toshiyaism-battle-trial.mp4",
+  "assets/videos/toshiyaism-bg-normal-idle.mp4",
+  "assets/videos/toshiyaism-bg-normal-high.mp4",
+  "assets/videos/toshiyaism-bg-normal-prebonus.mp4",
+  "assets/videos/toshiyaism-bg-normal-ready.mp4",
 ];
 
 const requiredDirs = [

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>パチスロ トシヤイズム V2</title>
+    <link rel="stylesheet" href="./src/v2/slot-v2.css">
+  </head>
+  <body>
+    <main class="v2-shell">
+      <section class="v2-machine" aria-label="トシヤイズムスロットV2">
+        <img class="v2-machine__art" src="./assets/mock/room-style-shell-v1-alpha.png" alt="">
+        <div class="v2-status" aria-label="ゲーム状況">
+          <div class="v2-meter"><span>メダル</span><strong id="v2Coins">300</strong></div>
+          <div class="v2-meter"><span>総ゲーム</span><strong id="v2TotalGames">0</strong></div>
+          <div class="v2-meter"><span>ボーナス間</span><strong id="v2GamesSinceBonus">0</strong></div>
+          <div class="v2-meter"><span>成立役</span><strong id="v2Role">待機</strong></div>
+          <div class="v2-meter"><span>払い出し</span><strong id="v2Payout">0枚</strong></div>
+        </div>
+        <div class="v2-scene" id="v2Scene" aria-label="演出画面">
+          <div class="v2-scene__media" data-scene-media></div>
+          <div class="v2-scene__copy">
+            <span data-scene-type>normal</span>
+            <strong data-scene-title>待機中</strong>
+            <p data-scene-message>静かな画面の裏で、内部抽選だけが進む。</p>
+          </div>
+        </div>
+        <div class="v2-reels" aria-label="リール">
+          <div class="v2-reel" data-v2-reel="0"><img src="./assets/reels/reel-strip-left-v2.png" alt=""><img src="./assets/reels/reel-strip-left-v2.png" alt=""></div>
+          <div class="v2-reel" data-v2-reel="1"><img src="./assets/reels/reel-strip-center-v2.png" alt=""><img src="./assets/reels/reel-strip-center-v2.png" alt=""></div>
+          <div class="v2-reel" data-v2-reel="2"><img src="./assets/reels/reel-strip-right-v2.png" alt=""><img src="./assets/reels/reel-strip-right-v2.png" alt=""></div>
+        </div>
+        <div class="v2-payline" aria-hidden="true"></div>
+        <div class="v2-controls" aria-label="操作">
+          <button type="button" id="v2SpinButton" class="v2-spin">回す</button>
+          <button type="button" data-v2-stop="0">左</button>
+          <button type="button" data-v2-stop="1">中</button>
+          <button type="button" data-v2-stop="2">右</button>
+        </div>
+      </section>
+      <aside class="v2-side">
+        <section class="v2-panel">
+          <h1>V2 内部抽選版</h1>
+          <p class="v2-message" id="v2Message">待機中</p>
+          <a class="v2-link" href="./index.html">現行版へ戻る</a>
+        </section>
+        <section class="v2-panel" aria-label="デバッグ表示">
+          <h2>Debug</h2>
+          <div class="v2-debug-grid">
+            <div><span>内部状態</span><strong id="v2InternalState">通常</strong></div>
+            <div><span>示唆ステージ</span><strong id="v2NormalStage">street</strong></div>
+            <div><span>前兆</span><strong id="v2Prelude">-</strong></div>
+            <div><span>BB</span><strong id="v2Bonus">-</strong></div>
+            <div><span>Scene</span><strong id="v2SceneId">-</strong></div>
+            <div><span>操作</span><strong>Space / Z X C</strong></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+    <script src="./src/v2/slot-v2-rules.js"></script>
+    <script src="./src/v2/slot-v2-engine.js"></script>
+    <script src="./src/v2/slot-v2-reels.js"></script>
+    <script src="./src/v2/slot-v2-scenes.js"></script>
+    <script src="./src/v2/slot-v2-scene-player.js"></script>
+    <script src="./src/v2/slot-v2-app.js"></script>
+  </body>
+</html>

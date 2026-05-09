@@ -747,6 +747,33 @@ button {
     drop-shadow(0 0 70px rgba(68, 210, 255, 0.24));
 }
 
+.play-ambient-video {
+  position: absolute;
+  left: var(--screen-x);
+  top: var(--screen-y);
+  z-index: 0;
+  width: var(--screen-w);
+  height: var(--screen-h);
+  object-fit: cover;
+  border-radius: 8px;
+  background: #050207;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  filter: saturate(1.08) contrast(1.06);
+  transition: opacity 240ms ease;
+}
+
+.play-ambient-video.is-active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.mock-stage.ambient-video-mode .play-screen-overlay {
+  background: transparent !important;
+  background-image: none !important;
+}
+
 .top-effect-overlay.effect-lose {
   background:
     radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.16), transparent 8%),
@@ -808,6 +835,26 @@ button {
     linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.28));
 }
 
+.mock-stage.ambient-video-mode .play-screen-overlay {
+  background-image:
+    radial-gradient(circle at 44% 44%, rgba(255, 255, 255, 0.16), transparent 8%),
+    linear-gradient(135deg, transparent 28%, rgba(255, 255, 255, 0.12) 29%, transparent 32%),
+    linear-gradient(180deg, rgba(5, 2, 9, 0.06), rgba(0, 0, 0, 0.16)) !important;
+  background-color: transparent !important;
+  background-size: auto, auto, auto !important;
+}
+
+.mock-stage.ambient-video-mode .play-screen-overlay::before {
+  opacity: 0;
+}
+
+.mock-stage.ambient-video-mode .play-screen-overlay::after {
+  background:
+    radial-gradient(circle at 50% 48%, transparent 0 62%, rgba(0, 0, 0, 0.34) 100%),
+    linear-gradient(135deg, transparent 30%, rgba(255, 255, 255, 0.12) 33%, transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.14));
+}
+
 .play-screen-overlay p {
   position: relative;
   z-index: 1;
@@ -836,6 +883,31 @@ button {
   font-family: "Yu Mincho", serif;
   font-size: 25px;
   font-weight: 900;
+}
+
+.play-effect-video {
+  position: absolute;
+  left: var(--screen-x);
+  top: var(--screen-y);
+  z-index: 3;
+  width: var(--screen-w);
+  height: var(--screen-h);
+  overflow: hidden;
+  border-radius: 3px;
+  background: #030303;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.play-effect-video.is-active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.mock-stage.video-effect-mode .comment-stream-overlay {
+  opacity: 0;
 }
 
 .comment-stream-overlay {
@@ -1224,7 +1296,7 @@ button {
 
 .utility-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
   border-bottom: 1px solid rgba(255, 225, 138, 0.28);
 }
 
@@ -1369,7 +1441,59 @@ button {
   object-fit: contain;
 }
 
+.effect-video-preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid rgba(255, 225, 138, 0.3);
+  border-radius: 6px;
+  background: #050505;
+}
+
+.effect-video-list {
+  display: grid;
+  gap: 10px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.effect-video-item {
+  display: grid;
+  gap: 6px;
+}
+
+.effect-video-item > strong {
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.effect-video-meta {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.effect-video-link {
+  display: inline-grid;
+  place-items: center;
+  min-height: 28px;
+  margin-top: 7px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 225, 138, 0.54);
+  border-radius: 5px;
+  background: #141414;
+  color: var(--gold-bright);
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
 .sound-toggle,
+.version-link,
 .debug-toggle {
   position: absolute;
   bottom: 31px;
@@ -1390,8 +1514,15 @@ button {
   right: 310px;
 }
 
-.debug-toggle {
+.version-link {
   right: 226px;
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+}
+
+.debug-toggle {
+  right: 142px;
 }
 
 .debug-panel {

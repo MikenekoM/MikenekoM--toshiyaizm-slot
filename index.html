@@ -141,6 +141,7 @@
             <button class="utility-tab is-active" type="button" data-panel-tab="shop">ショップ</button>
             <button class="utility-tab" type="button" data-panel-tab="save">あいことば</button>
             <button class="utility-tab" type="button" data-panel-tab="imagegen">画像生成</button>
+            <button class="utility-tab" type="button" data-panel-tab="effect-video">演出動画</button>
           </div>
           <div class="utility-content is-active" data-panel-content="shop">
             <div class="shop-list" id="shopList"></div>
@@ -160,6 +161,31 @@
             <div class="imagegen-preview" id="imagegenPreview" hidden>
               <img id="imagegenImage" alt="生成画像プレビュー">
             </div>
+          </div>
+          <div class="utility-content" data-panel-content="effect-video">
+            <div class="effect-video-list">
+              <article class="effect-video-item">
+                <strong>通常背景</strong>
+                <video class="effect-video-preview" src="./assets/videos/toshiyaism-bg-normal-idle.mp4" poster="./assets/effects/runtime/bg_normal_stream_room.webp" controls preload="none"></video>
+              </article>
+              <article class="effect-video-item">
+                <strong>高確背景</strong>
+                <video class="effect-video-preview" src="./assets/videos/toshiyaism-bg-normal-high.mp4" poster="./assets/effects/runtime/bg_normal_listener_glance.webp" controls preload="none"></video>
+              </article>
+              <article class="effect-video-item">
+                <strong>前兆背景</strong>
+                <video class="effect-video-preview" src="./assets/videos/toshiyaism-bg-normal-prebonus.mp4" poster="./assets/effects/runtime/bg_prebonus_low_rumble.webp" controls preload="none"></video>
+              </article>
+              <article class="effect-video-item">
+                <strong>確定待機背景</strong>
+                <video class="effect-video-preview" src="./assets/videos/toshiyaism-bg-normal-ready.mp4" poster="./assets/effects/runtime/bg_premium_rainbow_ism.webp" controls preload="none"></video>
+              </article>
+              <article class="effect-video-item">
+                <strong>20SET到達</strong>
+                <video class="effect-video-preview" src="./assets/videos/toshiyaism-battle-trial.mp4" poster="./assets/effects/runtime/battle_faceoff_silhouette.webp" controls preload="none"></video>
+              </article>
+            </div>
+            <p class="effect-video-meta">HyperFramesで作った演出動画。通常時の液晶背景として常時ループします。</p>
           </div>
         </section>
 
@@ -209,11 +235,10 @@
               <span>信念ランプ</span>
               <strong>待機中</strong>
             </div>
-            <div class="play-screen-overlay" id="effectScreen" aria-label="メイン演出画面">
-              <p>イズムチャンス</p>
-              <strong>信念を貫け</strong>
-              <span>その先に理想がある。</span>
-            </div>
+            <video class="play-ambient-video" id="ambientVideo" muted playsinline loop preload="auto" aria-hidden="true"></video>
+            <video class="play-ambient-video" id="ambientVideoBuffer" muted playsinline loop preload="auto" aria-hidden="true"></video>
+            <div class="play-screen-overlay" id="effectScreen" aria-label="メイン演出画面"></div>
+            <video class="play-effect-video" id="effectVideo" src="./assets/videos/toshiyaism-battle-trial.mp4" muted playsinline preload="none" aria-label="動画演出"></video>
             <div class="comment-stream-overlay" id="commentStream" aria-label="配信コメント演出"></div>
             <div class="live-reels" id="liveReels" aria-label="回転リール">
               <div class="live-reel" data-reel="0" style="--stop-y: 0px">
@@ -256,6 +281,7 @@
         </div>
 
         <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="false">音</button>
+        <a class="version-link" href="./v2.html">V2</a>
         <button class="debug-toggle" id="debugToggle" type="button" aria-pressed="false">調整</button>
         <aside class="debug-panel" id="debugPanel" aria-label="調整パネル">
           <div class="debug-panel__head">

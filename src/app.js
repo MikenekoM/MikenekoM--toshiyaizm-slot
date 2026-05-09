@@ -2,6 +2,9 @@ const board = document.querySelector("#mockStage");
 const modeToggle = document.querySelector("#modeToggle");
 const topEffect = document.querySelector("#topEffect");
 const effectScreen = document.querySelector("#effectScreen");
+const ambientVideo = document.querySelector("#ambientVideo");
+const ambientVideoBuffer = document.querySelector("#ambientVideoBuffer");
+const effectVideo = document.querySelector("#effectVideo");
 const commentStream = document.querySelector("#commentStream");
 const spinButton = document.querySelector("#spinButton");
 const stopButtons = [...document.querySelectorAll("[data-stop]")];
@@ -130,6 +133,7 @@ const state = {
   effectPlan: null,
   lastPayout: 0,
   bonusBattleAnimating: false,
+  effectVideoPlaying: false,
   battleStage: "idle",
   battleOutcome: null,
   lastBattle: null,
@@ -148,6 +152,12 @@ const state = {
 };
 
 let debugForcedRole = null;
+let currentAmbientVideoId = null;
+let pendingAmbientVideoId = null;
+let activeAmbientVideo = ambientVideo;
+let inactiveAmbientVideo = ambientVideoBuffer || ambientVideo;
+let ambientVideoLoadToken = 0;
+let effectVideoTimer = null;
 
 const debugDefenseLabels = {
   toshiyaFirst: "先制",
@@ -390,6 +400,18 @@ const effectPlans = {
 };
 
 const assetBasePath = "./assets/effects/runtime/";
+const effectVideoClips = {
+  "battle-milestone": {
+    src: "./assets/videos/toshiyaism-battle-trial.mp4",
+    durationMs: 12000,
+  },
+};
+const ambientVideoClips = {
+  normal: "./assets/videos/toshiyaism-bg-normal-idle.mp4",
+  high: "./assets/videos/toshiyaism-bg-normal-high.mp4",
+  preBonus: "./assets/videos/toshiyaism-bg-normal-prebonus.mp4",
+  bonusReady: "./assets/videos/toshiyaism-bg-normal-ready.mp4",
+};
 const effectAssets = {
   premium: {
     top: ["sign_premium_rainbow.png"],
@@ -792,7 +814,174 @@ function asCssUrl(asset) {
   return runtimeAsset ? `url("${assetBasePath}${runtimeAsset}")` : "none";
 }
 
+function getAmbientVideoId() {
+  if (state.phase === "battleBonus") return null;
+  if (state.mode === "bonusReady") return "bonusReady";
+  if (state.mode === "preBonus") return "preBonus";
+  if (state.mode === "high") return "high";
+  return "normal";
+}
+
+function configureAmbientElement(video) {
+  if (!video) return;
+  video.muted = true;
+  video.loop = true;
+  video.playsInline = true;
+}
+
+function hideAmbientElement(video) {
+  if (!video) return;
+  video.classList.remove("is-active");
+  video.pause();
+}
+
+function stopAmbientVideo() {
+  ambientVideoLoadToken += 1;
+  currentAmbientVideoId = null;
+  pendingAmbientVideoId = null;
+  board.classList.remove("ambient-video-mode");
+  hideAmbientElement(ambientVideo);
+  hideAmbientElement(ambientVideoBuffer);
+}
+
+function updateAmbientVideo() {
+  if (!ambientVideo) return;
+  const clipId = getAmbientVideoId();
+  const src = clipId ? ambientVideoClips[clipId] : null;
+  if (!src) {
+    stopAmbientVideo();
+    return;
+  }
+  configureAmbientElement(ambientVideo);
+  configureAmbientElement(ambientVideoBuffer);
+
+  if (currentAmbientVideoId === clipId) {
+    activeAmbientVideo?.classList.add("is-active");
+    board.classList.add("ambient-video-mode");
+    activeAmbientVideo?.play().catch(() => {
+      activeAmbientVideo?.classList.remove("is-active");
+      board.classList.remove("ambient-video-mode");
+    });
+    return;
+  }
+  if (pendingAmbientVideoId === clipId) return;
+
+  ambientVideoLoadToken += 1;
+  const loadToken = ambientVideoLoadToken;
+  pendingAmbientVideoId = clipId;
+  const nextVideo = activeAmbientVideo === ambientVideo ? (ambientVideoBuffer || ambientVideo) : ambientVideo;
+  const previousVideo = activeAmbientVideo;
+
+  nextVideo.classList.remove("is-active");
+  nextVideo.pause();
+  if (nextVideo.getAttribute("src") !== src) {
+    nextVideo.src = src;
+    nextVideo.load();
+  }
+
+  const showWhenReady = () => {
+    if (loadToken !== ambientVideoLoadToken || pendingAmbientVideoId !== clipId) return;
+    try {
+      nextVideo.currentTime = 0;
+    } catch {
+      // Metadata may not be ready yet; playback will still use the new source.
+    }
+    nextVideo.classList.add("is-active");
+    nextVideo.play().then(() => {
+      board.classList.add("ambient-video-mode");
+      if (previousVideo && previousVideo !== nextVideo) {
+        hideAmbientElement(previousVideo);
+      }
+      activeAmbientVideo = nextVideo;
+      inactiveAmbientVideo = previousVideo && previousVideo !== nextVideo
+        ? previousVideo
+        : (ambientVideoBuffer || ambientVideo);
+      currentAmbientVideoId = clipId;
+      pendingAmbientVideoId = null;
+    }).catch(() => {
+      if (loadToken !== ambientVideoLoadToken || pendingAmbientVideoId !== clipId) return;
+      nextVideo.classList.remove("is-active");
+      pendingAmbientVideoId = null;
+      if (!currentAmbientVideoId) {
+        board.classList.remove("ambient-video-mode");
+      }
+    });
+  };
+
+  if (nextVideo.readyState >= 2) {
+    showWhenReady();
+  } else {
+    nextVideo.addEventListener("loadeddata", showWhenReady, { once: true });
+  }
+}
+
+function clearEffectVideoTimer() {
+  if (!effectVideoTimer) return;
+  if (effectVideoTimer.virtual) {
+    virtualTimers = virtualTimers.filter((timer) => timer.id !== effectVideoTimer.id);
+  } else {
+    window.clearTimeout(effectVideoTimer.id);
+  }
+  effectVideoTimer = null;
+}
+
+function stopEffectVideo({ reset = true } = {}) {
+  clearEffectVideoTimer();
+  state.effectVideoPlaying = false;
+  board.classList.remove("video-effect-mode");
+  effectVideo?.classList.remove("is-active");
+  if (!effectVideo) return;
+  effectVideo.pause();
+  if (reset) {
+    try {
+      effectVideo.currentTime = 0;
+    } catch {
+      // Some browsers reject seeks before metadata is available.
+    }
+  }
+}
+
+function finishEffectVideo() {
+  stopEffectVideo();
+  renderControls();
+}
+
+function scheduleEffectVideoFinish(durationMs) {
+  clearEffectVideoTimer();
+  const virtual = virtualTimeEnabled;
+  effectVideoTimer = {
+    id: scheduleGameTimer(finishEffectVideo, durationMs),
+    virtual,
+  };
+}
+
+function playEffectVideo(clipId) {
+  const clip = effectVideoClips[clipId];
+  if (!effectVideo || !clip) return;
+  stopEffectVideo();
+  effectVideo.src = clip.src;
+  effectVideo.classList.add("is-active");
+  board.classList.add("video-effect-mode");
+  state.effectVideoPlaying = true;
+  try {
+    effectVideo.currentTime = 0;
+  } catch {
+    // Metadata may not be loaded yet; playback still starts from the beginning.
+  }
+  effectVideo.controls = false;
+  effectVideo.play().catch(() => {
+    effectVideo.controls = true;
+  });
+  scheduleEffectVideoFinish(clip.durationMs);
+  renderControls();
+}
+
+function playBattleMilestoneVideo() {
+  playEffectVideo("battle-milestone");
+}
+
 function setEffectVisual(plan, isFinal = false) {
+  stopEffectVideo({ reset: false });
   topEffect.style.backgroundImage = `${asCssUrl(plan.topAsset)}, radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent 58%)`;
   topEffect.style.backgroundSize = "cover, cover";
   topEffect.style.backgroundPosition = "center, center";
@@ -807,6 +996,7 @@ function setEffectVisual(plan, isFinal = false) {
   `;
   effectScreen.style.backgroundSize = "auto, auto, auto, cover, auto";
   effectScreen.style.backgroundPosition = "center, center, center, center, center";
+  updateAmbientVideo();
 }
 
 function setEffectClass(tier) {
@@ -826,10 +1016,9 @@ function setTopEffectText(text) {
 }
 
 function setEffectScreenContent(scene, payout = null) {
-  const payoutText = payout !== null
-    ? `<span>${scene.message}${payout > 0 ? ` / ${payout.toLocaleString("ja-JP")}枚 獲得` : ""}</span>`
-    : `<span>${scene.message}</span>`;
-  effectScreen.innerHTML = `<p>${scene.label}</p><strong>${scene.title}</strong>${payoutText}`;
+  const payoutSuffix = payout !== null && payout > 0 ? ` / ${payout.toLocaleString("ja-JP")}枚` : "";
+  effectScreen.setAttribute("aria-label", [scene.label, scene.title, scene.message, payoutSuffix].filter(Boolean).join(" "));
+  effectScreen.innerHTML = "";
 }
 
 function getCommentPool(tier) {
@@ -846,26 +1035,9 @@ function pickCommentName() {
 }
 
 function showStreamComment(tier, text, index) {
-  if (!commentStream || !text) return;
-  const item = document.createElement("span");
-  item.className = `stream-comment stream-comment--${tier || "normal"}`;
-  item.style.setProperty("--comment-y", `${10 + nextRandom() * 76}%`);
-  item.style.setProperty("--comment-duration", `${3.2 + nextRandom() * 1.1}s`);
-  const name = document.createElement("b");
-  name.textContent = pickCommentName();
-  const body = document.createElement("em");
-  body.textContent = text;
-  item.append(name, body);
-  commentStream.append(item);
-
-  const delay = index * 90;
-  item.style.animationDelay = `${delay}ms`;
-  const cleanupTimer = window.setTimeout(() => item.remove(), 5400 + delay);
-  commentTimers.push(cleanupTimer);
-
-  while (commentStream.children.length > 10) {
-    commentStream.firstElementChild?.remove();
-  }
+  void tier;
+  void text;
+  void index;
 }
 
 function burstStreamComments(tier, amount = null) {
@@ -1081,6 +1253,7 @@ function applySaveData(data, options = {}) {
   state.battleOutcome = null;
   state.lastBattle = null;
   state.bonusBattleAnimating = false;
+  stopEffectVideo();
   state.lastEngineEvent = null;
   state.lastSlip = [0, 0, 0];
   clearGameTimers();
@@ -1124,6 +1297,11 @@ function renderGameToText() {
     effectTone: state.effectPlan ? state.effectPlan.tone || null : null,
     lastPayout: state.lastPayout,
     bonusBattleAnimating: state.bonusBattleAnimating,
+    ambientVideoId: currentAmbientVideoId,
+    ambientVideoPendingId: pendingAmbientVideoId,
+    ambientVideoPlaying: Boolean(activeAmbientVideo?.classList.contains("is-active") && !activeAmbientVideo.paused),
+    ambientVideoSrc: activeAmbientVideo?.getAttribute("src") || activeAmbientVideo?.currentSrc || null,
+    effectVideoPlaying: state.effectVideoPlaying,
     battleStage: state.battleStage,
     battleOutcome: state.battleOutcome,
     lastBattle: state.lastBattle,
@@ -1544,7 +1722,7 @@ function renderControls() {
   const readyForBonus = state.mode === "bonusReady" && state.phase !== "battleBonus";
   const canSpinNormal = state.phase === "battleBonus" || state.coins >= fixedBet;
   const canStepDebugBattle = state.debugSandboxActive && state.bonusBattleAnimating && state.phase === "battleBonus";
-  spinButton.disabled = state.spinning || (state.bonusBattleAnimating && !canStepDebugBattle) || readyForBonus || !canSpinNormal;
+  spinButton.disabled = state.effectVideoPlaying || state.spinning || (state.bonusBattleAnimating && !canStepDebugBattle) || readyForBonus || !canSpinNormal;
   if (state.phase === "battleBonus" && canStepDebugBattle) {
     spinButton.textContent = state.battleStage === "faceoff"
       ? "攻撃へ"
@@ -1558,10 +1736,10 @@ function renderControls() {
   }
   if (bonusStartButton) {
     bonusStartButton.hidden = !readyForBonus;
-    bonusStartButton.disabled = !readyForBonus;
+    bonusStartButton.disabled = state.effectVideoPlaying || !readyForBonus;
   }
   stopButtons.forEach((button, index) => {
-    button.disabled = !state.spinning || state.stopped[index];
+    button.disabled = state.effectVideoPlaying || !state.spinning || state.stopped[index];
   });
   betButtons.forEach((button) => {
     button.disabled = true;
@@ -1571,6 +1749,7 @@ function renderControls() {
 }
 
 function startSpin() {
+  if (state.effectVideoPlaying) return;
   if (state.phase === "battleBonus") {
     if (advanceDebugBattleStep()) return;
     if (state.battleStage === "setReady" || (state.bonus && (state.bonus.gamesInSet || 0) >= (state.bonus.setGames || getBonusGamesPerSet()))) {
@@ -1867,6 +2046,9 @@ function resolveBattleBonusSet({ continued, payout, nextSet, milestoneReached, a
         ? "continue"
         : "end";
   slotAudio?.play(soundId);
+  if (milestoneReached) {
+    playBattleMilestoneVideo();
+  }
 
   if (!continued) {
     const endedBonus = state.bonus;
@@ -2045,6 +2227,9 @@ soundToggle?.addEventListener("click", () => {
   slotAudio?.toggleMuted();
   renderSoundToggle();
 });
+
+effectVideo?.addEventListener("ended", finishEffectVideo);
+effectVideo?.addEventListener("error", finishEffectVideo);
 
 utilityTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
