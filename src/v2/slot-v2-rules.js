@@ -20,8 +20,8 @@
       cellHeight: 70,
       spinMsPerSymbol: 55,
       successWindowCells: 1,
-      meoshiSlipCells: 2,
-      bonusEntrySlipCells: 2,
+      meoshiSlipCells: 3,
+      bonusEntrySlipCells: 3,
       activeLines: [
         { id: "middle", label: "中段", rows: [1, 1, 1] },
         { id: "top", label: "上段", rows: [0, 0, 0] },

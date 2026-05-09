@@ -106,6 +106,17 @@ const meoshiControlIds = await page.evaluate(() => [
   "v2DebugMeoshiForce",
 ].filter((id) => !document.getElementById(id)));
 if (meoshiControlIds.length) failed.push(`missing meoshi debug controls: ${meoshiControlIds.join(", ")}`);
+const initialTuning = await state();
+if (initialTuning.meoshiTuning?.meoshiSlipCells !== 3 || initialTuning.meoshiTuning?.bonusEntrySlipCells !== 3) {
+  failed.push(`default meoshi slip should be 3/3: ${JSON.stringify(initialTuning.meoshiTuning)}`);
+}
+const initialTuningInputs = await page.evaluate(() => ({
+  normal: document.getElementById("v2DebugMeoshiSlip")?.value,
+  bonusEntry: document.getElementById("v2DebugBonusEntrySlip")?.value,
+}));
+if (initialTuningInputs.normal !== "3" || initialTuningInputs.bonusEntry !== "3") {
+  failed.push(`default meoshi inputs should show 3/3: ${JSON.stringify(initialTuningInputs)}`);
+}
 const directionalSlip = await page.evaluate(() => ({
   forward: window.ToshiyaSlotV2Reels.slipCellsFromPress(6, 5),
   reverse: window.ToshiyaSlotV2Reels.slipCellsFromPress(6, 7),
