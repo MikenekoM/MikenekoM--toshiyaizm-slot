@@ -47,7 +47,7 @@ NetlifyやCloudflare PagesのDirect Uploadを使う場合:
 
 1. ローカルで `node scripts/build-dist.mjs` を実行する。
 2. 生成された `dist/` フォルダをアップロードする。
-3. 公開URLを開き、`Space / Z / X / C` と全体モード切り替えを確認する。
+3. 公開URLを開き、`Left Shift` 始動、`Space` 始動/順押し停止、全体モード切り替えを確認する。
 
 ## テスターへ渡す文面
 

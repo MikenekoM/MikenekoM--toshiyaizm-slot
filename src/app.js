@@ -1903,6 +1903,22 @@ betButtons.forEach((button) => {
   button.addEventListener("click", () => changeBet(Number(button.dataset.betStep)));
 });
 
+function runKeyboardStartAction() {
+  if (state.mode === "bonusReady" && state.phase !== "battleBonus") {
+    startBattleBonus();
+  } else {
+    startSpin();
+  }
+}
+
+function stopNextReelInOrder() {
+  if (!state.spinning) return false;
+  const nextIndex = state.stopped.findIndex((stopped) => !stopped);
+  if (nextIndex < 0) return false;
+  stopReel(nextIndex);
+  return true;
+}
+
 document.addEventListener("keydown", (event) => {
   if (event.repeat) return;
   if (event.target.matches("input, textarea, select")) return;
@@ -1910,11 +1926,13 @@ document.addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
   if (event.code === "Space") {
     event.preventDefault();
-    if (state.mode === "bonusReady" && state.phase !== "battleBonus") {
-      startBattleBonus();
-    } else {
-      startSpin();
-    }
+    if (!stopNextReelInOrder()) runKeyboardStartAction();
+    return;
+  }
+
+  if (event.code === "ShiftLeft") {
+    event.preventDefault();
+    if (!state.spinning) runKeyboardStartAction();
     return;
   }
 
