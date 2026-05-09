@@ -24,6 +24,13 @@
         </div>
         <div class="v2-scene" id="v2Scene" aria-label="演出画面">
           <div class="v2-scene__media" data-scene-media></div>
+          <div class="v2-role-flash" data-role-flash hidden>
+            <img data-role-flash-image src="./assets/effects/runtime/cut_surprised_toshiya.webp" alt="">
+            <div>
+              <span data-role-flash-kicker>CHANCE</span>
+              <strong data-role-flash-title>レア役</strong>
+            </div>
+          </div>
           <div class="v2-scene__copy">
             <span data-scene-type>normal</span>
             <strong data-scene-title>待機中</strong>
@@ -77,6 +84,35 @@
             <div><span>BB</span><strong id="v2Bonus">-</strong></div>
             <div><span>Scene</span><strong id="v2SceneId">-</strong></div>
             <div><span>操作</span><strong>Space / Z X C</strong></div>
+          </div>
+          <div class="v2-debug-controls" aria-label="デバッグ操作">
+            <label>
+              <span>状態</span>
+              <select id="v2DebugState">
+                <option value="low">低確</option>
+                <option value="normal" selected>通常</option>
+                <option value="high">高確</option>
+                <option value="prelude">前兆</option>
+                <option value="bonusReady">7揃え待ち</option>
+                <option value="bonus">ボーナス</option>
+              </select>
+            </label>
+            <label>
+              <span>示唆</span>
+              <select id="v2DebugStage">
+                <option value="street">street</option>
+                <option value="heat">heat</option>
+                <option value="deep">deep</option>
+              </select>
+            </label>
+            <label>
+              <span>コイン</span>
+              <input id="v2DebugCoins" type="number" min="0" max="999999" step="1" value="300">
+            </label>
+            <div class="v2-debug-buttons">
+              <button type="button" id="v2DebugApply">反映</button>
+              <button type="button" id="v2DebugReset">初期化</button>
+            </div>
           </div>
         </section>
       </aside>

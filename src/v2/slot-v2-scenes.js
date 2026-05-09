@@ -22,7 +22,7 @@
     normal_role_strong_cherry: scene("normal_role_strong_cherry", "normal", 3.0, "video", "assets/videos/v2/role-strong-cherry.mp4", "中段チェリーの圧", "特別な気配。だが最後まで断定はしない。"),
     prelude_hint: scene("prelude_hint", "prelude", 3.1, "video", "assets/videos/v2/normal-stage-high.mp4", "前兆の奥", "内部では決まっている。だが画面はまだ答えを出さない。"),
     prelude_deep: scene("prelude_deep", "prelude", 3.2, "video", "assets/videos/v2/normal-stage-high.mp4", "沈む画面", "残りゲームだけが、確定へ近づいていく。"),
-    bonus_ready: scene("bonus_ready", "bonus_ready", 3.0, "image", "assets/effects/runtime/bg_premium_rainbow_ism.webp", "ボーナス確定", "次のレバーで揃う。ここから先は継続の勝負。"),
+    bonus_ready: scene("bonus_ready", "bonus_ready", 3.0, "image", "assets/effects/runtime/bg_premium_rainbow_ism.webp", "ボーナス確定", "7を狙え。揃えるまでボーナスは始まらない。"),
     bonus_open_normal7: scene("bonus_open_normal7", "bonus_open", 3.0, "image", "assets/effects/runtime/bonus_ism_awakening.webp", "7揃い", "通常7揃い。ストックと継続率はすでに決まっている。"),
     bonus_open_logo: scene("bonus_open_logo", "bonus_open", 3.2, "image", "assets/effects/runtime/bg_premium_rainbow_ism.webp", "トシヤロゴ揃い", "夢は大きい。だが完走確定ではない。"),
     bonus_early: scene("bonus_early", "bonus_game", 2.2, "image", "assets/effects/runtime/battle_faceoff_silhouette.webp", "期待感ゾーン", "強い演出が多い。けれど安心するには早い。"),

@@ -117,13 +117,20 @@ await page.evaluate(() => {
     internalState: "bonusReady",
     pendingBonus: pending,
   });
+  window.__toshiyaSlotV2Test.forceStopSuccess("normal7");
 });
 await page.keyboard.press("Space");
+await page.waitForTimeout(80);
+state = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
+if (state.spinKind !== "bonusEntry" || state.phase === "bonus") failed.push(`bonusReady did not enter 7 aiming turn first: ${JSON.stringify(state)}`);
+await page.keyboard.press("KeyZ");
+await page.keyboard.press("KeyX");
+await page.keyboard.press("KeyC");
 await page.waitForTimeout(150);
 state = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
 media = await currentMedia();
-if (state.phase !== "bonus" || state.lastSceneId !== "bonus_open_normal7") failed.push(`bonus did not switch immediately: ${JSON.stringify(state)}`);
-if (media.tag !== "IMG" || !media.src.endsWith("assets/effects/runtime/bonus_ism_awakening.webp")) failed.push(`bonus opening did not replace video immediately: ${JSON.stringify(media)}`);
+if (state.phase !== "bonus" || state.lastSceneId !== "bonus_open_normal7") failed.push(`bonus did not switch after 7 entry success: ${JSON.stringify(state)}`);
+if (media.tag !== "IMG" || !media.src.endsWith("assets/effects/runtime/bonus_ism_awakening.webp")) failed.push(`bonus opening did not replace video after 7 entry success: ${JSON.stringify(media)}`);
 
 await page.screenshot({ path: path.join(root, "tmp", "slot-v2-video-scene-test.png"), fullPage: false });
 await browser.close();

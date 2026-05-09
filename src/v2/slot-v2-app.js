@@ -21,6 +21,15 @@
     spin: document.querySelector("#v2SpinButton"),
     stops: [...document.querySelectorAll("[data-v2-stop]")],
     reels: [...document.querySelectorAll("[data-v2-reel]")],
+    roleFlash: document.querySelector("[data-role-flash]"),
+    roleFlashImage: document.querySelector("[data-role-flash-image]"),
+    roleFlashKicker: document.querySelector("[data-role-flash-kicker]"),
+    roleFlashTitle: document.querySelector("[data-role-flash-title]"),
+    debugState: document.querySelector("#v2DebugState"),
+    debugStage: document.querySelector("#v2DebugStage"),
+    debugCoins: document.querySelector("#v2DebugCoins"),
+    debugApply: document.querySelector("#v2DebugApply"),
+    debugReset: document.querySelector("#v2DebugReset"),
   };
 
   const scenePlayer = scenePlayerFactory.create({
@@ -37,6 +46,7 @@
   let virtualTimers = [];
   let useVirtualTimers = false;
   let reelFrameId = null;
+  let roleFlashToken = 0;
   const reelCellHeight = rules.reel.cellHeight;
   const reelCycleHeight = rules.reel.symbolCount * reelCellHeight;
   const reelSpeedPxPerMs = reelCellHeight / rules.reel.spinMsPerSymbol;
@@ -92,6 +102,10 @@
   }
 
   function roleById(roleId) {
+    const entry = rules.entrySymbols.find((item) => item.id === roleId);
+    if (entry) {
+      return { id: entry.id, name: entry.name, payout: 0, targetable: true };
+    }
     if (state.phase === "bonus") {
       const bonusRole = rules.bonus.roles.find((role) => role.id === roleId);
       if (bonusRole) {
@@ -170,7 +184,82 @@
     });
   }
 
+  function getPendingEntryRole() {
+    const pending = state.pendingBonus || engine.drawPendingBonus(rng);
+    if (!state.pendingBonus) state = { ...state, pendingBonus: pending, internalState: "bonusReady" };
+    return { id: pending.entrySymbol, name: pending.entryName, payout: 0, targetable: true };
+  }
+
+  function isNormalMeoshiPayoutRole(role) {
+    return engine.isNormalMeoshiPayoutRole?.(role) || rules.normalMeoshiPayoutRoles?.includes(role?.id);
+  }
+
+  function shouldFlashRole(role) {
+    return role?.id === "watermelon" || role?.cherry;
+  }
+
+  function showRoleFlash(role) {
+    if (!dom.roleFlash || !shouldFlashRole(role)) return;
+    const flash = {
+      watermelon: {
+        title: "スイカ",
+        kicker: "RARE",
+        image: "./assets/effects/runtime/cut_surprised_toshiya.webp",
+      },
+      weakCherry: {
+        title: "チェリー",
+        kicker: "CHANCE",
+        image: "./assets/effects/runtime/cut_comic_smug_maane_toshiya.webp",
+      },
+      strongCherry: {
+        title: "中段チェリー",
+        kicker: "STRONG",
+        image: "./assets/effects/runtime/cut_comic_big_surprise_toshiya.webp",
+      },
+    }[role.id] || {
+      title: role.name || "レア役",
+      kicker: "CHANCE",
+      image: "./assets/effects/runtime/cut_surprised_toshiya.webp",
+    };
+    roleFlashToken += 1;
+    const token = roleFlashToken;
+    if (dom.roleFlashImage) {
+      dom.roleFlashImage.src = flash.image;
+      dom.roleFlashImage.alt = flash.title;
+    }
+    if (dom.roleFlashKicker) dom.roleFlashKicker.textContent = flash.kicker;
+    if (dom.roleFlashTitle) dom.roleFlashTitle.textContent = flash.title;
+    dom.roleFlash.hidden = false;
+    dom.roleFlash.dataset.role = role.id;
+    requestAnimationFrame(() => dom.roleFlash?.classList.add("is-visible"));
+    schedule(920, () => {
+      if (token !== roleFlashToken || !dom.roleFlash) return;
+      dom.roleFlash.classList.remove("is-visible");
+      schedule(180, () => {
+        if (token === roleFlashToken && dom.roleFlash) {
+          dom.roleFlash.hidden = true;
+          delete dom.roleFlash.dataset.role;
+        }
+      });
+    });
+  }
+
+  function hideRoleFlash() {
+    roleFlashToken += 1;
+    dom.roleFlash?.classList.remove("is-visible");
+    if (dom.roleFlash) {
+      dom.roleFlash.hidden = true;
+      delete dom.roleFlash.dataset.role;
+    }
+  }
+
   function buildAutoStopPattern(kind, role) {
+    if (kind === "bonusGame") {
+      return {
+        pattern: reelsApi.pickLineStopPattern(role, rng),
+        aligned: true,
+      };
+    }
     if (kind !== "normal") return null;
     if (!role || role.id === "blank") {
       return {
@@ -190,12 +279,7 @@
         aligned: true,
       };
     }
-    if (role?.cherry) {
-      return {
-        pattern: reelsApi.pickCherryStopPattern(role, rng),
-        aligned: true,
-      };
-    }
+    if (isNormalMeoshiPayoutRole(role)) return null;
     return {
       pattern: reelsApi.pickLineStopPattern(role, rng),
       aligned: true,
@@ -238,28 +322,32 @@
       return;
     }
     if (state.internalState === "bonusReady" && state.phase !== "bonus") {
-      startBonus();
+      startReelSpin("bonusEntry");
       return;
     }
     startReelSpin(state.phase === "bonus" ? "bonusGame" : "normal");
   }
 
   function startReelSpin(kind) {
-    if (kind === "normal") {
-      if (!state.replayCredit) {
+    if (kind === "normal" || kind === "bonusEntry") {
+      if (kind === "normal" && state.replayCredit) {
+        state = { ...state, replayCredit: false };
+      } else {
         if (state.coins < rules.bet) {
           state.lastMessage = "メダルが足りない。";
           render();
           return;
         }
         state = { ...state, coins: state.coins - rules.bet };
-      } else {
-        state = { ...state, replayCredit: false };
       }
     }
     const forcedRole = nextForcedRoleId ? roleById(nextForcedRoleId) : null;
     nextForcedRoleId = null;
-    const role = forcedRole || (kind === "bonusGame" ? engine.drawBonusRole(rng) : engine.drawRole(rng));
+    const role = forcedRole || (kind === "bonusGame"
+      ? engine.drawBonusRole(rng)
+      : kind === "bonusEntry"
+        ? getPendingEntryRole()
+        : engine.drawRole(rng));
     const startedAt = now();
     currentSpin = {
       kind,
@@ -281,9 +369,17 @@
     });
     renderReels();
     startReelLoop();
-    state.lastMessage = kind === "normal"
-      ? `${role.name}。停止形は内部で決定済み。`
-      : `${role.name}を狙う。成功時だけ払い出し。`;
+    hideRoleFlash();
+    if (kind === "normal") {
+      state.lastMessage = isNormalMeoshiPayoutRole(role)
+        ? `${role.name}を狙う。払い出しは目押し、内部効果は有効。`
+        : `${role.name}。停止形は内部で決定済み。`;
+      showRoleFlash(role);
+    } else if (kind === "bonusEntry") {
+      state.lastMessage = `${role.name}を狙え。揃うまでボーナスは始まらない。`;
+    } else {
+      state.lastMessage = `${role.name}。内部成立で自動停止。`;
+    }
     if (kind === "bonusGame") {
       const scene = scenes.pickBonusGameScene((state.bonus?.gamesInSet || 0) + 1);
       state.lastSceneId = scene.scene_id;
@@ -339,7 +435,18 @@
     stopReelLoop();
     const stopResult = reelsApi.evaluateStops(spin.role, spin.stops);
 
-    if (spin.kind === "bonusGame") {
+    if (spin.kind === "bonusEntry") {
+      const event = engine.resolveBonusEntry(state, stopResult, rng, spin.role);
+      state = event.nextState;
+      if (event.started) {
+        const sceneId = event.openingRole?.id === "toshiyaLogo" ? "bonus_open_logo" : "bonus_open_normal7";
+        state.lastSceneId = sceneId;
+        scenePlayer.playScene(sceneId, { message: state.lastMessage });
+      } else {
+        state.lastSceneId = "bonus_ready";
+        scenePlayer.playScene("bonus_ready", { message: state.lastMessage });
+      }
+    } else if (spin.kind === "bonusGame") {
       const event = engine.resolveBonusGame(state, stopResult, rng, spin.role);
       state = event.nextState;
       const scene = scenes.pickBonusGameScene(state.bonus?.gamesInSet || 1);
@@ -410,6 +517,103 @@
     render();
   }
 
+  function makeDebugPending() {
+    return engine.drawPendingBonus(rng, "strongCherry");
+  }
+
+  function playSceneForState() {
+    if (state.phase === "bonus") {
+      const scene = scenes.pickBonusGameScene((state.bonus?.gamesInSet || 0) + 1);
+      state.lastSceneId = scene.scene_id;
+      scenePlayer.playScene(scene.scene_id, { message: state.lastMessage });
+      return;
+    }
+    if (state.internalState === "bonusReady") {
+      state.lastSceneId = "bonus_ready";
+      scenePlayer.playScene("bonus_ready", { message: state.lastMessage });
+      return;
+    }
+    if (state.internalState === "prelude") {
+      const scene = scenes.pickNormalScene({
+        internalState: state.internalState,
+        normalStage: state.normalStage,
+        preludeRemaining: state.preludeRemaining,
+      }, rng);
+      state.lastSceneId = scene.scene_id;
+      scenePlayer.playScene(scene.scene_id, { message: state.lastMessage || scene.message });
+      return;
+    }
+    playNormalLoopScene();
+  }
+
+  function applyDebugState() {
+    stopReelLoop();
+    hideRoleFlash();
+    currentSpin = null;
+    judgeRunning = false;
+    const requestedState = dom.debugState?.value || "normal";
+    const requestedStage = dom.debugStage?.value || state.normalStage || "street";
+    const coins = Math.max(0, Math.min(999999, Math.floor(Number(dom.debugCoins?.value) || 0)));
+    let nextState = engine.normalizeState({
+      ...engine.initialState(),
+      coins,
+      totalGames: state.totalGames,
+      gamesSinceBonus: state.gamesSinceBonus,
+      internalState: requestedState,
+      normalStage: requestedStage,
+      lastMessage: "デバッグ状態を反映した。",
+    });
+    if (requestedState === "prelude") {
+      nextState = engine.enterPrelude(nextState, rng, "strongCherry");
+      nextState.lastMessage = "デバッグ: 前兆中。";
+    } else if (requestedState === "bonusReady") {
+      nextState = engine.normalizeState({
+        ...nextState,
+        internalState: "bonusReady",
+        pendingBonus: makeDebugPending(),
+        preludeRemaining: 0,
+        lastMessage: "デバッグ: 7揃え待ち。",
+      });
+    } else if (requestedState === "bonus") {
+      const pending = makeDebugPending();
+      nextState = engine.startBonus(engine.normalizeState({
+        ...nextState,
+        internalState: "bonusReady",
+        pendingBonus: pending,
+        lastMessage: "デバッグ: ボーナス中。",
+      }), rng).nextState;
+    }
+    state = engine.normalizeState(nextState);
+    setReelStops(reelsApi.buildNonWinningStops(rng));
+    saveState();
+    playSceneForState();
+    render();
+  }
+
+  function resetDebugState() {
+    stopReelLoop();
+    hideRoleFlash();
+    currentSpin = null;
+    judgeRunning = false;
+    state = engine.initialState();
+    setReelStops([0, 0, 0]);
+    saveState();
+    playNormalLoopScene();
+    render();
+  }
+
+  function syncDebugControls() {
+    if (dom.debugState && document.activeElement !== dom.debugState) {
+      dom.debugState.value = state.phase === "bonus" ? "bonus" : state.internalState;
+    }
+    if (dom.debugStage && document.activeElement !== dom.debugStage) {
+      dom.debugStage.value = state.normalStage;
+    }
+    if (dom.debugCoins && document.activeElement !== dom.debugCoins) {
+      dom.debugCoins.value = String(state.coins);
+    }
+  }
+
   function render() {
     const labels = rules.internalStateLabels;
     if (dom.coin) dom.coin.textContent = state.coins.toLocaleString("ja-JP");
@@ -440,6 +644,7 @@
         : (state.pendingBonus ? state.pendingBonus.entryName : "-");
     }
     if (dom.sceneId) dom.sceneId.textContent = state.lastSceneId || "-";
+    syncDebugControls();
     dom.stops.forEach((button, index) => {
       button.disabled = !currentSpin || currentSpin.stops[index] !== null;
     });
@@ -447,9 +652,9 @@
       dom.spin.textContent = currentSpin
         ? "停止"
         : state.phase === "bonus" && state.bonus?.gamesInSet >= state.bonus?.setGames
-          ? "ジャッジ"
+        ? "ジャッジ"
         : state.internalState === "bonusReady" && state.phase !== "bonus"
-          ? "BB開始"
+          ? "7狙い"
         : "回す";
     }
   }
@@ -496,6 +701,7 @@
       } : null,
       replayCredit: state.replayCredit,
       spinning: Boolean(currentSpin),
+      spinKind: currentSpin?.kind || null,
       stopped: currentSpin ? currentSpin.stops.map((value) => value !== null) : [true, true, true],
       currentRole: currentSpin?.role?.id || null,
       autoStopPattern: currentSpin?.autoStop?.pattern || null,
@@ -505,6 +711,8 @@
       lastSceneId: state.lastSceneId,
       message: state.lastMessage,
       judgeRunning,
+      roleFlashVisible: Boolean(dom.roleFlash && !dom.roleFlash.hidden && dom.roleFlash.classList.contains("is-visible")),
+      roleFlashRole: dom.roleFlash?.dataset.role || null,
       reels: getReelDebug(),
     });
   }
@@ -513,6 +721,8 @@
   dom.stops.forEach((button) => {
     button.addEventListener("click", () => stopReel(Number(button.dataset.v2Stop)));
   });
+  dom.debugApply?.addEventListener("click", applyDebugState);
+  dom.debugReset?.addEventListener("click", resetDebugState);
   document.addEventListener("keydown", (event) => {
     if (event.code === "Space" || event.code === "ShiftLeft") {
       event.preventDefault();
@@ -575,6 +785,13 @@
     },
     playNormalLoopScene() {
       return playNormalLoopScene()?.scene_id || null;
+    },
+    applyDebug(data = {}) {
+      if (dom.debugState && data.internalState) dom.debugState.value = data.internalState;
+      if (dom.debugStage && data.normalStage) dom.debugStage.value = data.normalStage;
+      if (dom.debugCoins && Number.isFinite(Number(data.coins))) dom.debugCoins.value = String(Number(data.coins));
+      applyDebugState();
+      return renderGameToText();
     },
   };
 

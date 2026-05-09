@@ -40,8 +40,8 @@
         weakCherry: [[1, 3, 6], [3, 11, 6]],
         chance: [[3, 4, 7], [11, 12, 15]],
         strongCherry: [[2, 3, 6], [2, 11, 14]],
-        normal7: [[7, 7, 7]],
-        toshiyaLogo: [[11, 11, 11]],
+        normal7: [[1, 0, 3], [9, 8, 11]],
+        toshiyaLogo: [[3, 4, 15], [11, 12, 7]],
       },
       requiredReels: {
         bell: [0, 1, 2],
@@ -55,6 +55,7 @@
       },
     },
     roles,
+    normalMeoshiPayoutRoles: ["watermelon", "weakCherry", "strongCherry"],
     internalStateLabels: {
       low: "低確",
       normal: "通常",

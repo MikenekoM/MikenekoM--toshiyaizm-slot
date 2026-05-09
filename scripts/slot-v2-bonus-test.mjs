@@ -15,11 +15,31 @@ const logoPending = {
   stockSets: 3,
   premium: true,
 };
-const start = engine.startBonus(engine.initialState({
+const entryRole = {
+  id: logoPending.entrySymbol,
+  name: logoPending.entryName,
+  payout: 0,
+  targetable: true,
+};
+const entryMiss = engine.resolveBonusEntry(
+  engine.initialState({
+    internalState: "bonusReady",
+    pendingBonus: logoPending,
+    coins: 1000,
+  }),
+  reels.evaluateStops(entryRole, reels.buildFailedStops(entryRole, engine.createSeededRng(44))),
+  engine.createSequenceRng([0.99]),
+  entryRole,
+);
+if (entryMiss.started || entryMiss.nextState.phase === "bonus" || entryMiss.nextState.internalState !== "bonusReady") {
+  failed.push("bonus entry miss should stay in 7/logo aiming turn");
+}
+
+const start = engine.resolveBonusEntry(engine.initialState({
   internalState: "bonusReady",
   pendingBonus: logoPending,
   coins: 1000,
-}), engine.createSequenceRng([0.99]));
+}), reels.evaluateStops(entryRole, reels.pickLineStopPattern(entryRole, engine.createSeededRng(45))), engine.createSequenceRng([0.99]), entryRole);
 
 if (start.openingRole.id !== "toshiyaLogo") failed.push("logo bonus did not open with logo role");
 if (start.nextState.bonus.setGames !== 30 || start.nextState.bonus.gamesInSet !== 0) failed.push("bonus did not start at 0/30G");
@@ -30,9 +50,9 @@ if (start.nextState.bonus.stockSets !== 2) failed.push("stock was not consumed w
 
 let bonusState = start.nextState;
 const bell = { ...rules.roles.find((role) => role.id === "bell"), payout: 8, bonusGame: true, targetable: true };
-const success = reels.evaluateStops(bell, reels.pickStopPattern(bell, engine.createSeededRng(31)));
+const visualMiss = reels.evaluateStops(bell, reels.buildFailedStops(bell, engine.createSeededRng(31)));
 for (let index = 0; index < 30; index += 1) {
-  bonusState = engine.resolveBonusGame(bonusState, success, engine.createSeededRng(index + 1), bell).nextState;
+  bonusState = engine.resolveBonusGame(bonusState, visualMiss, engine.createSeededRng(index + 1), bell).nextState;
 }
 if (bonusState.bonus.gamesInSet !== 30 || bonusState.bonus.totalPayout !== 240) failed.push("30G bonus payout/progress invalid");
 

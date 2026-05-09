@@ -27,11 +27,11 @@ const visualMissEvent = engine.resolveNormalSpin(
 if (!successEvent.stopResult.success || successEvent.payout !== strong.payout) {
   failed.push("normal internal strong cherry did not pay");
 }
-if (!visualMissEvent.stopResult.success || visualMissEvent.payout !== strong.payout) {
-  failed.push("normal visual miss changed internal strong cherry payout");
+if (visualMissEvent.stopResult.success || visualMissEvent.payout !== 0) {
+  failed.push("normal visual miss paid strong cherry");
 }
 if (visualMissEvent.nextState.internalState !== "prelude" || !visualMissEvent.internalEffectApplied) {
-  failed.push("normal visual miss changed internal prelude effect");
+  failed.push("normal visual miss did not keep internal prelude effect");
 }
 
 const replay = rules.roles.find((role) => role.id === "replay");

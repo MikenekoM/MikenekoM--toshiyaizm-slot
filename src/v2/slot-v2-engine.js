@@ -210,11 +210,16 @@
     };
   }
 
+  function isNormalMeoshiPayoutRole(role) {
+    return rules.normalMeoshiPayoutRoles?.includes(role?.id);
+  }
+
   function resolveNormalSpin(state, stopResult, rng = Math.random, forcedRole = null) {
     const before = normalizeState(state);
     const role = forcedRole || drawRole(rng);
     let nextState = { ...before };
-    const successfulStop = role.id !== "blank";
+    const visualSuccess = Boolean(stopResult?.success);
+    const successfulStop = role.id !== "blank" && (!isNormalMeoshiPayoutRole(role) || visualSuccess);
     const payout = successfulStop ? Math.max(0, Number(role.payout) || 0) : 0;
     const transitionNote = {
       before: before.internalState,
@@ -256,7 +261,7 @@
     nextState.lastMessage = buildSpinMessage({ role, successfulStop, payout, transitionNote, stageNote });
     return {
       role,
-      stopResult: { ...stopResult, success: successfulStop },
+      stopResult: { ...stopResult, success: successfulStop, visualSuccess },
       payout,
       nextState,
       transitionNote,
@@ -273,6 +278,53 @@
     if (role.replay && successfulStop) return "リプレイ成功。次ゲームはBET免除。";
     if (stageNote.changed) return `${role.name}。空気だけが少し変わった。${missed}`.trim();
     return `${role.name}。まだ断定できない。${missed}`.trim();
+  }
+
+  function resolveBonusEntry(state, stopResult, rng = Math.random, entryRole = null) {
+    const before = normalizeState(state);
+    const pending = before.pendingBonus || drawPendingBonus(rng);
+    const role = entryRole || {
+      id: pending.entrySymbol,
+      name: pending.entryName,
+      payout: 0,
+      targetable: true,
+    };
+    const successfulStop = Boolean(stopResult?.success);
+    const attemptedState = {
+      ...before,
+      phase: "normal",
+      internalState: "bonusReady",
+      pendingBonus: pending,
+      preludeRemaining: 0,
+      replayCredit: false,
+      totalGames: before.totalGames + 1,
+      gamesSinceBonus: before.gamesSinceBonus + 1,
+      lastRole: role.id,
+      lastPayout: 0,
+    };
+    if (!successfulStop) {
+      return {
+        role,
+        payout: 0,
+        started: false,
+        stopResult: { ...stopResult, success: false, visualSuccess: false },
+        nextState: {
+          ...attemptedState,
+          lastMessage: `${role.name}を揃えられず。もう一度狙う。`,
+        },
+      };
+    }
+    const start = startBonus({
+      ...attemptedState,
+      lastMessage: `${role.name}が揃った。ボーナス開始。`,
+    }, rng);
+    return {
+      ...start,
+      role,
+      payout: 0,
+      started: true,
+      stopResult: { ...stopResult, success: true, visualSuccess: true },
+    };
   }
 
   function startBonusSet(bonus, rng = Math.random) {
@@ -333,7 +385,7 @@
       return { role: null, payout: 0, nextState: before };
     }
     const role = forcedRole || drawBonusRole(rng);
-    const successfulStop = Boolean(stopResult?.success);
+    const successfulStop = Boolean(role?.id);
     const payout = successfulStop ? Math.max(0, Number(role.payout) || 0) : 0;
     const bonus = { ...before.bonus };
     bonus.gamesInSet = Math.min(bonus.setGames, bonus.gamesInSet + 1);
@@ -349,7 +401,7 @@
         ? `${role.name}成功、${payout}枚。${bonus.gamesInSet}/${bonus.setGames}G。`
         : `${role.name}取りこぼし。${bonus.gamesInSet}/${bonus.setGames}G。`,
     };
-    return { role, payout, stopResult: { ...stopResult, success: successfulStop }, nextState };
+    return { role, payout, stopResult: { ...stopResult, success: successfulStop, visualSuccess: Boolean(stopResult?.success) }, nextState };
   }
 
   function resolveBonusJudge(state, rng = Math.random) {
@@ -404,7 +456,9 @@
     drawPendingBonus,
     updateNormalStage,
     enterPrelude,
+    isNormalMeoshiPayoutRole,
     resolveNormalSpin,
+    resolveBonusEntry,
     startBonus,
     startBonusSet,
     resolveBonusGame,

@@ -65,19 +65,28 @@ await page.evaluate(() => {
     pendingBonus: pending,
   });
   window.__toshiyaSlotV2Test.setRandomSequence([0.99, 0.99, 0.99, 0.99]);
+  window.__toshiyaSlotV2Test.forceStopSuccess("normal7");
 });
 await page.keyboard.press("Space");
+await page.keyboard.press("KeyZ");
+await page.keyboard.press("KeyX");
+await page.keyboard.press("KeyC");
 const afterBonusStart = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
 
 await page.evaluate(() => {
   window.__toshiyaSlotV2Test.forceRole("bell");
-  window.__toshiyaSlotV2Test.forceStopSuccess("bell");
 });
 await page.keyboard.press("Space");
 await page.keyboard.press("KeyZ");
 await page.keyboard.press("KeyX");
 await page.keyboard.press("KeyC");
 const afterBonusGame = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
+
+await page.selectOption("#v2DebugState", "high");
+await page.selectOption("#v2DebugStage", "deep");
+await page.fill("#v2DebugCoins", "777");
+await page.click("#v2DebugApply");
+const afterDebugApply = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
 
 await page.screenshot({ path: path.join(root, "tmp", "slot-v2-smoke-test.png"), fullPage: false });
 await browser.close();
@@ -87,6 +96,9 @@ if (!afterNormal || afterNormal.route !== "v2" || afterNormal.totalGames !== 1) 
 if (afterPreludeEntry.internalState !== "prelude" || !afterPreludeEntry.pendingBonus) failed.push("strong cherry did not enter prelude in browser");
 if (afterBonusStart.phase !== "bonus" || afterBonusStart.bonus?.gamesInSet !== 0) failed.push("bonus did not start in browser");
 if (afterBonusGame.bonus?.gamesInSet !== 1 || afterBonusGame.lastPayout !== 8) failed.push("bonus game did not pay after forced bell");
+if (afterDebugApply.internalState !== "high" || afterDebugApply.normalStage !== "deep" || afterDebugApply.coins !== 777) {
+  failed.push("V2 debug state/coin controls did not apply");
+}
 
-console.log(JSON.stringify({ errors, failedRequests, failed, afterNormal, afterPreludeEntry, afterBonusStart, afterBonusGame }, null, 2));
+console.log(JSON.stringify({ errors, failedRequests, failed, afterNormal, afterPreludeEntry, afterBonusStart, afterBonusGame, afterDebugApply }, null, 2));
 if (errors.length || failedRequests.length || failed.length) process.exitCode = 1;
