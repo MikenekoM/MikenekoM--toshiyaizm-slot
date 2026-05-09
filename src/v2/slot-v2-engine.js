@@ -214,7 +214,7 @@
     const before = normalizeState(state);
     const role = forcedRole || drawRole(rng);
     let nextState = { ...before };
-    const successfulStop = Boolean(stopResult?.success);
+    const successfulStop = role.id !== "blank";
     const payout = successfulStop ? Math.max(0, Number(role.payout) || 0) : 0;
     const transitionNote = {
       before: before.internalState,

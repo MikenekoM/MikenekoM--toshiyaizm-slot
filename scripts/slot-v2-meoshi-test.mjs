@@ -17,7 +17,7 @@ const successEvent = engine.resolveNormalSpin(
   engine.createSequenceRng([0.5, 0.5, 0.5, 0.5]),
   strong,
 );
-const missEvent = engine.resolveNormalSpin(
+const visualMissEvent = engine.resolveNormalSpin(
   engine.initialState({ internalState: "high", coins: 100 }),
   reels.evaluateStops(strong, missPattern),
   engine.createSequenceRng([0.5, 0.5, 0.5, 0.5]),
@@ -25,13 +25,13 @@ const missEvent = engine.resolveNormalSpin(
 );
 
 if (!successEvent.stopResult.success || successEvent.payout !== strong.payout) {
-  failed.push("successful meoshi did not pay strong cherry");
+  failed.push("normal internal strong cherry did not pay");
 }
-if (missEvent.stopResult.success || missEvent.payout !== 0) {
-  failed.push("missed meoshi paid out");
+if (!visualMissEvent.stopResult.success || visualMissEvent.payout !== strong.payout) {
+  failed.push("normal visual miss changed internal strong cherry payout");
 }
-if (missEvent.nextState.internalState !== "prelude" || !missEvent.internalEffectApplied) {
-  failed.push("missed strong cherry did not keep internal prelude effect");
+if (visualMissEvent.nextState.internalState !== "prelude" || !visualMissEvent.internalEffectApplied) {
+  failed.push("normal visual miss changed internal prelude effect");
 }
 
 const replay = rules.roles.find((role) => role.id === "replay");
@@ -49,7 +49,7 @@ const replayMiss = engine.resolveNormalSpin(
 );
 
 if (!replaySuccess.nextState.replayCredit) failed.push("successful replay did not grant replay credit");
-if (replayMiss.nextState.replayCredit) failed.push("missed replay granted replay credit");
+if (!replayMiss.nextState.replayCredit) failed.push("normal visual miss changed internal replay credit");
 
 const bell = rules.roles.find((role) => role.id === "bell");
 const lineResults = rules.reel.activeLines.map((line) => ({
@@ -63,6 +63,10 @@ for (const item of lineResults) {
 }
 const bellMiss = reels.evaluateStops(bell, reels.buildFailedStops(bell, engine.createSeededRng(41)));
 if (bellMiss.success) failed.push(`buildFailedStops produced a bell payline: ${JSON.stringify(bellMiss)}`);
+const nonWinningStops = reels.buildNonWinningStops(engine.createSeededRng(42));
+if (reels.findVisualLine(nonWinningStops) || reels.leftHasCherry(nonWinningStops)) {
+  failed.push(`non-winning stops showed a visual win: ${JSON.stringify({ nonWinningStops, line: reels.findVisualLine(nonWinningStops), leftCherry: reels.leftHasCherry(nonWinningStops) })}`);
+}
 
-console.log(JSON.stringify({ failed, successEvent, missEvent, replaySuccess, replayMiss, lineResults, bellMiss }, null, 2));
+console.log(JSON.stringify({ failed, successEvent, visualMissEvent, replaySuccess, replayMiss, lineResults, bellMiss, nonWinningStops }, null, 2));
 if (failed.length) process.exitCode = 1;

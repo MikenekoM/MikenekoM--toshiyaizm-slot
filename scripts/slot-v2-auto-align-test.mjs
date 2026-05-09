@@ -77,52 +77,47 @@ if (!lineInfo.some((line) => line.className.includes("diagonal-a")) || !lineInfo
 const globalPatterns = await page.evaluate(() => ({
   bell: window.ToshiyaSlotV2Reels.getLineStopPatterns("bell"),
   replay: window.ToshiyaSlotV2Reels.getLineStopPatterns("replay"),
+  watermelon: window.ToshiyaSlotV2Reels.getLineStopPatterns("watermelon"),
+  chance: window.ToshiyaSlotV2Reels.getLineStopPatterns("chance"),
 }));
 
-const bellLineConfig = await page.evaluate(() => {
-  const bell = window.ToshiyaSlotV2Rules.roles.find((role) => role.id === "bell");
-  return {
-    targetRate: window.ToshiyaSlotV2Rules.normalBellLineRate,
-    conditionalChance: window.ToshiyaSlotV2Rules.normalBellLineRate / bell.probability,
-  };
-});
-if (Math.abs(bellLineConfig.targetRate - 1 / 40) > 0.000001) {
-  failed.push(`normal bell line target is not 1/40: ${JSON.stringify(bellLineConfig)}`);
+const bellRate = await page.evaluate(() => window.ToshiyaSlotV2Rules.roles.find((role) => role.id === "bell")?.probability);
+if (Math.abs(bellRate - 1 / 40) > 0.000001) {
+  failed.push(`normal bell probability is not 1/40: ${bellRate}`);
 }
 
-let result = await forceRoleSpin("bell", [0, 0]);
+let result = await forceRoleSpin("bell", [0]);
 assertRoleAutoAligned("bell", result.during, result.after);
-if (!result.during.autoStopAligned) failed.push("normal bell winning branch did not mark autoStopAligned");
+if (!result.during.autoStopAligned) failed.push("normal bell did not mark autoStopAligned");
 if (result.after.lastPayout !== 8) failed.push(`normal bell did not auto-pay 8: ${result.after.lastPayout}`);
-
-result = await forceRoleSpin("bell", [0.99, 0, 0, 0, 0, 0, 0]);
-if (!result.during.autoStopPattern) failed.push("normal bell miss branch did not keep reel control");
-if (result.during.autoStopAligned) failed.push("normal bell miss branch incorrectly marked autoStopAligned");
-if (result.after.lastPayout !== 0) failed.push(`normal bell should only visibly line up at 1/40 branch, paid: ${result.after.lastPayout}`);
 
 result = await forceRoleSpin("replay");
 assertRoleAutoAligned("replay", result.during, result.after);
 if (!result.during.autoStopAligned) failed.push("normal replay did not mark autoStopAligned");
 if (!result.after.replayCredit) failed.push("normal replay did not auto-grant replay credit");
 
-await page.evaluate(() => {
-  window.__toshiyaSlotV2Test.setState({ coins: 1000, internalState: "normal", normalStage: "street" });
-  window.__toshiyaSlotV2Test.forceRole("strongCherry");
-  window.__toshiyaSlotV2Test.forceStops([6, 3, 6]);
-});
-await page.keyboard.press("Space");
-await page.waitForTimeout(80);
-const strongDuring = await state();
-await page.keyboard.press("KeyZ");
-await page.keyboard.press("KeyX");
-await page.keyboard.press("KeyC");
-await page.waitForTimeout(120);
-const strongAfter = await state();
-if (strongDuring.autoStopPattern) failed.push("strong cherry incorrectly set autoStopPattern");
-if (strongAfter.lastPayout !== 0) failed.push(`strong cherry miss paid out: ${strongAfter.lastPayout}`);
-if (!sameStops(strongAfter.reels.map((reel) => reel.stoppedIndex), [6, 3, 6])) {
-  failed.push(`strong cherry forced miss stops changed: ${JSON.stringify(strongAfter.reels)}`);
-}
+result = await forceRoleSpin("watermelon", [0]);
+assertRoleAutoAligned("watermelon", result.during, result.after);
+if (!result.during.autoStopAligned || result.after.lastPayout !== 6) failed.push(`normal watermelon did not resolve internally: ${JSON.stringify(result.after)}`);
+
+result = await forceRoleSpin("chance", [0]);
+assertRoleAutoAligned("chance", result.during, result.after);
+if (!result.during.autoStopAligned || result.after.lastPayout !== 1) failed.push(`normal chance did not resolve internally: ${JSON.stringify(result.after)}`);
+
+result = await forceRoleSpin("strongCherry", [0]);
+if (!result.during.autoStopPattern || !result.during.autoStopAligned) failed.push("strong cherry did not set internal stop pattern");
+const strongStops = result.after.reels.map((reel) => reel.stoppedIndex);
+const strongLeftCherry = await page.evaluate((stops) => window.ToshiyaSlotV2Reels.leftHasCherry(stops), strongStops);
+if (!strongLeftCherry || result.after.lastPayout !== 2) failed.push(`strong cherry did not pay from left reel only: ${JSON.stringify(result.after)}`);
+
+result = await forceRoleSpin("blank", [0, 0, 0, 0, 0, 0]);
+const blankStops = result.after.reels.map((reel) => reel.stoppedIndex);
+const blankVisual = await page.evaluate((stops) => ({
+  visualLine: window.ToshiyaSlotV2Reels.findVisualLine(stops),
+  leftCherry: window.ToshiyaSlotV2Reels.leftHasCherry(stops),
+}), blankStops);
+if (!result.during.autoStopPattern || result.during.autoStopAligned) failed.push("blank did not use internal miss stop pattern");
+if (blankVisual.visualLine || blankVisual.leftCherry) failed.push(`blank showed an accidental role shape: ${JSON.stringify(blankVisual)} stops=${JSON.stringify(blankStops)}`);
 
 await page.screenshot({ path: path.join(root, "tmp", "slot-v2-auto-align-test.png"), fullPage: false });
 await browser.close();

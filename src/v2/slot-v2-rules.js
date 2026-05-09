@@ -1,7 +1,7 @@
 (function registerSlotV2Rules(global) {
   const roles = [
     { id: "blank", name: "ハズレ", probability: null, payout: 0, heat: 0, targetable: false },
-    { id: "bell", name: "ベル", probability: 1 / 1.9, payout: 8, heat: 1, targetable: true },
+    { id: "bell", name: "ベル", probability: 1 / 40, payout: 8, heat: 1, targetable: true },
     { id: "replay", name: "リプレイ", probability: 1 / 7.3, payout: 0, heat: 0, replay: true, targetable: true },
     { id: "watermelon", name: "スイカ", probability: 1 / 119, payout: 6, heat: 3, rare: true, targetable: true },
     { id: "weakCherry", name: "角チェリー", probability: 1 / 135, payout: 2, heat: 2, rare: true, cherry: true, targetable: true },
@@ -15,7 +15,6 @@
     version: 1,
     saveKey: "toshiyaizm-slot-v2-state",
     bet: 3,
-    normalBellLineRate: 1 / 40,
     reel: {
       symbolCount: 16,
       cellHeight: 70,
@@ -27,6 +26,11 @@
         { id: "bottom", label: "下段", rows: [2, 2, 2] },
         { id: "diagonalDown", label: "右下がり", rows: [0, 1, 2] },
         { id: "diagonalUp", label: "右上がり", rows: [2, 1, 0] },
+      ],
+      symbolStrips: [
+        ["face", "replay", "seven", "cherry", "logo", "bell", "dogeza", "bar", "face", "replay", "seven", "cherry", "logo", "bell", "dogeza", "bar"],
+        ["replay", "seven", "face", "bell", "cherry", "logo", "watermelon", "dogeza", "replay", "seven", "face", "bell", "cherry", "logo", "watermelon", "dogeza"],
+        ["logo", "face", "dogeza", "bell", "seven", "watermelon", "replay", "cherry", "logo", "face", "dogeza", "bell", "seven", "watermelon", "replay", "cherry"],
       ],
       stopPatterns: {
         blank: [[0, 5, 9], [4, 11, 2], [8, 1, 13]],

@@ -170,15 +170,14 @@
     });
   }
 
-  function normalBellLineChance(role) {
-    const targetRate = Number(rules.normalBellLineRate || 0);
-    const roleRate = Number(role?.probability || 0);
-    if (targetRate <= 0 || roleRate <= 0) return 0;
-    return Math.max(0, Math.min(1, targetRate / roleRate));
-  }
-
   function buildAutoStopPattern(kind, role) {
     if (kind !== "normal") return null;
+    if (!role || role.id === "blank") {
+      return {
+        pattern: reelsApi.buildNonWinningStops(rng),
+        aligned: false,
+      };
+    }
     if (role?.id === "replay") {
       return {
         pattern: reelsApi.pickLineStopPattern(role, rng),
@@ -186,13 +185,21 @@
       };
     }
     if (role?.id === "bell") {
-      const aligned = rng() < normalBellLineChance(role);
       return {
-        pattern: aligned ? reelsApi.pickLineStopPattern(role, rng) : reelsApi.buildFailedStops(role, rng),
-        aligned,
+        pattern: reelsApi.pickLineStopPattern(role, rng),
+        aligned: true,
       };
     }
-    return null;
+    if (role?.cherry) {
+      return {
+        pattern: reelsApi.pickCherryStopPattern(role, rng),
+        aligned: true,
+      };
+    }
+    return {
+      pattern: reelsApi.pickLineStopPattern(role, rng),
+      aligned: true,
+    };
   }
 
   function canPlayNormalLoopScene() {
@@ -274,7 +281,9 @@
     });
     renderReels();
     startReelLoop();
-    state.lastMessage = `${role.name}を狙う。成功時だけ払い出し。`;
+    state.lastMessage = kind === "normal"
+      ? `${role.name}。停止形は内部で決定済み。`
+      : `${role.name}を狙う。成功時だけ払い出し。`;
     if (kind === "bonusGame") {
       const scene = scenes.pickBonusGameScene((state.bonus?.gamesInSet || 0) + 1);
       state.lastSceneId = scene.scene_id;
@@ -552,7 +561,9 @@
     },
     forceStopSuccess(roleId) {
       const role = roleById(roleId || nextForcedRoleId) || rules.roles.find((item) => item.id === roleId);
-      nextForcedStops = reelsApi.pickStopPattern(role || roleId, rng);
+      nextForcedStops = role?.cherry
+        ? reelsApi.pickCherryStopPattern(role, rng)
+        : reelsApi.pickLineStopPattern(role || roleId, rng);
       return renderGameToText();
     },
     getState() {
