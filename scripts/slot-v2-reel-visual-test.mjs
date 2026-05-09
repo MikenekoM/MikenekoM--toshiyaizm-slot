@@ -107,6 +107,8 @@ for (let index = 0; index < 16; index += 1) {
 }
 
 await resetPage();
+const spinMsPerSymbol = await page.evaluate(() => window.ToshiyaSlotV2Rules.reel.spinMsPerSymbol);
+if (spinMsPerSymbol !== 55) failed.push(`spinMsPerSymbol expected 55 after speed-up, got ${spinMsPerSymbol}`);
 const beforeSpin = await reels();
 await page.keyboard.press("Space");
 await page.waitForTimeout(70);

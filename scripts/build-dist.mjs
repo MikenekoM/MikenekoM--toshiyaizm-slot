@@ -38,6 +38,7 @@ const requiredFiles = [
 
 const requiredDirs = [
   "assets/effects/runtime",
+  "assets/videos/v2",
 ];
 
 function assertInsideRoot(target) {

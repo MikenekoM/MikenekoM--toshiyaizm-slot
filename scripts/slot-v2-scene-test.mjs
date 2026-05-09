@@ -14,6 +14,7 @@ for (const scene of Object.values(scenes.catalog)) {
   for (const key of ["scene_id", "scene_type", "duration", "asset_type", "asset_path", "audio_path", "can_skip", "transition_type", "next_scene", "timeline"]) {
     if (!(key in scene)) failed.push(`${scene.scene_id} missing ${key}`);
   }
+  if (!["image", "video"].includes(scene.asset_type)) failed.push(`${scene.scene_id} has unsupported asset_type: ${scene.asset_type}`);
   const fullPath = path.join(root, scene.asset_path);
   if (!fs.existsSync(fullPath)) failed.push(`${scene.scene_id} asset missing: ${scene.asset_path}`);
   let lastAt = -1;
@@ -43,6 +44,18 @@ const heatHeatCount = Object.entries(heat).filter(([id]) => id.includes("heat"))
 
 if (deepDeepCount <= streetDeepCount * 5) failed.push("deep stage does not strongly favor deep scenes");
 if (heatHeatCount <= streetHeatCount * 3) failed.push("heat stage does not favor heat scenes");
+
+const streetVideo = scenes.getScene("normal_street_room");
+const heatVideo = scenes.getScene("normal_heat_comments");
+const deepVideo = scenes.getScene("normal_deep_rumble");
+if (streetVideo.asset_type !== "video" || !streetVideo.asset_path.endsWith("normal-stage-low.mp4")) failed.push("street stage is not using the low video asset");
+if (heatVideo.asset_type !== "video" || !heatVideo.asset_path.endsWith("normal-stage-mid.mp4")) failed.push("heat stage is not using the mid video asset");
+if (deepVideo.asset_type !== "video" || !deepVideo.asset_path.endsWith("normal-stage-high.mp4")) failed.push("deep stage is not using the high video asset");
+
+const weakCherryScene = scenes.pickNormalScene({ internalState: "normal", normalStage: "street", role: { id: "weakCherry" } });
+const strongCherryScene = scenes.pickNormalScene({ internalState: "normal", normalStage: "street", role: { id: "strongCherry" } });
+if (weakCherryScene.scene_id !== "normal_role_weak_cherry") failed.push("weak cherry did not select the weak cherry video scene");
+if (strongCherryScene.scene_id !== "normal_role_strong_cherry") failed.push("strong cherry did not select the strong cherry video scene");
 
 const noDomScene = globalThis.ToshiyaSlotV2ScenePlayer.playScene("normal_deep_hot");
 if (noDomScene.scene_id !== "normal_deep_hot") failed.push("ScenePlayer no-DOM playScene failed");

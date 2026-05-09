@@ -26,6 +26,7 @@
         element.loop = true;
         element.playsInline = true;
         element.autoplay = true;
+        element.preload = "auto";
         element.play?.().catch(() => {});
       }
       mediaWrap.appendChild(element);

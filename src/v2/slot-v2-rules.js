@@ -18,7 +18,7 @@
     reel: {
       symbolCount: 16,
       cellHeight: 70,
-      spinMsPerSymbol: 82,
+      spinMsPerSymbol: 55,
       successWindowCells: 1,
       stopPatterns: {
         blank: [[0, 5, 9], [4, 11, 2], [8, 1, 13]],

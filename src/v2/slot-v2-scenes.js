@@ -9,17 +9,19 @@
   ];
 
   const catalog = {
-    normal_street_room: scene("normal_street_room", "normal", 2.6, "image", "assets/effects/runtime/bg_normal_stream_room.webp", "静かな配信部屋", "大きな変化はない。小さな違和感だけが残る。"),
-    normal_street_midnight: scene("normal_street_midnight", "normal", 2.6, "image", "assets/effects/runtime/bg_normal_midnight_room.webp", "深夜の静けさ", "何も起きていないようで、画面だけが少し重い。"),
-    normal_street_shadow: scene("normal_street_shadow", "normal", 2.6, "image", "assets/effects/runtime/bg_normal_subtle_shadow.webp", "弱い影", "期待するほどではない。だが完全には消えていない。"),
-    normal_heat_comments: scene("normal_heat_comments", "normal", 2.8, "image", "assets/effects/runtime/bg_chance_comments.webp", "コメントがざわつく", "流れが少しだけ前のめりになる。"),
-    normal_heat_ticket: scene("normal_heat_ticket", "normal", 2.8, "image", "assets/effects/runtime/bg_chance_race_ticket.webp", "握ったチャンス", "まだ確信はない。手元だけが熱い。"),
-    normal_heat_table: scene("normal_heat_table", "normal", 2.8, "image", "assets/effects/runtime/bg_chance_baccarat_table.webp", "盤面の違和感", "外れてもおかしくない。だからこそ目が離せない。"),
-    normal_deep_rumble: scene("normal_deep_rumble", "normal", 3.0, "image", "assets/effects/runtime/bg_prebonus_low_rumble.webp", "低いざわめき", "前兆のようにも見える。まだ言い切れない。"),
-    normal_deep_pressure: scene("normal_deep_pressure", "normal", 3.0, "image", "assets/effects/runtime/bg_prebonus_deep_pressure.webp", "濃い圧", "画面の奥が沈む。強いが、確定ではない。"),
-    normal_deep_hot: scene("normal_deep_hot", "normal", 3.0, "image", "assets/effects/runtime/bg_hot_baccarat_pressure.webp", "赤い圧", "当たっていてほしい。その願いをあえて揺らす。"),
-    prelude_hint: scene("prelude_hint", "prelude", 3.1, "image", "assets/effects/runtime/bg_prebonus_low_rumble.webp", "前兆の奥", "内部では決まっている。だが画面はまだ答えを出さない。"),
-    prelude_deep: scene("prelude_deep", "prelude", 3.2, "image", "assets/effects/runtime/bg_prebonus_deep_pressure.webp", "沈む画面", "残りゲームだけが、確定へ近づいていく。"),
+    normal_street_room: scene("normal_street_room", "normal", 2.6, "video", "assets/videos/v2/normal-stage-low.mp4", "静かな配信部屋", "大きな変化はない。小さな違和感だけが残る。"),
+    normal_street_midnight: scene("normal_street_midnight", "normal", 2.6, "video", "assets/videos/v2/normal-stage-low.mp4", "深夜の静けさ", "何も起きていないようで、画面だけが少し重い。"),
+    normal_street_shadow: scene("normal_street_shadow", "normal", 2.6, "video", "assets/videos/v2/normal-stage-low.mp4", "弱い影", "期待するほどではない。だが完全には消えていない。"),
+    normal_heat_comments: scene("normal_heat_comments", "normal", 2.8, "video", "assets/videos/v2/normal-stage-mid.mp4", "コメントがざわつく", "流れが少しだけ前のめりになる。"),
+    normal_heat_ticket: scene("normal_heat_ticket", "normal", 2.8, "video", "assets/videos/v2/normal-stage-mid.mp4", "握ったチャンス", "まだ確信はない。手元だけが熱い。"),
+    normal_heat_table: scene("normal_heat_table", "normal", 2.8, "video", "assets/videos/v2/normal-stage-mid.mp4", "盤面の違和感", "外れてもおかしくない。だからこそ目が離せない。"),
+    normal_deep_rumble: scene("normal_deep_rumble", "normal", 3.0, "video", "assets/videos/v2/normal-stage-high.mp4", "低いざわめき", "前兆のようにも見える。まだ言い切れない。"),
+    normal_deep_pressure: scene("normal_deep_pressure", "normal", 3.0, "video", "assets/videos/v2/normal-stage-high.mp4", "濃い圧", "画面の奥が沈む。強いが、確定ではない。"),
+    normal_deep_hot: scene("normal_deep_hot", "normal", 3.0, "video", "assets/videos/v2/normal-stage-high.mp4", "赤い圧", "当たっていてほしい。その願いをあえて揺らす。"),
+    normal_role_weak_cherry: scene("normal_role_weak_cherry", "normal", 2.8, "video", "assets/videos/v2/role-weak-cherry.mp4", "角チェリーの気配", "小さく引っかかる。上がるかどうかはまだわからない。"),
+    normal_role_strong_cherry: scene("normal_role_strong_cherry", "normal", 3.0, "video", "assets/videos/v2/role-strong-cherry.mp4", "中段チェリーの圧", "特別な気配。だが最後まで断定はしない。"),
+    prelude_hint: scene("prelude_hint", "prelude", 3.1, "video", "assets/videos/v2/normal-stage-high.mp4", "前兆の奥", "内部では決まっている。だが画面はまだ答えを出さない。"),
+    prelude_deep: scene("prelude_deep", "prelude", 3.2, "video", "assets/videos/v2/normal-stage-high.mp4", "沈む画面", "残りゲームだけが、確定へ近づいていく。"),
     bonus_ready: scene("bonus_ready", "bonus_ready", 3.0, "image", "assets/effects/runtime/bg_premium_rainbow_ism.webp", "ボーナス確定", "次のレバーで揃う。ここから先は継続の勝負。"),
     bonus_open_normal7: scene("bonus_open_normal7", "bonus_open", 3.0, "image", "assets/effects/runtime/bonus_ism_awakening.webp", "7揃い", "通常7揃い。ストックと継続率はすでに決まっている。"),
     bonus_open_logo: scene("bonus_open_logo", "bonus_open", 3.2, "image", "assets/effects/runtime/bg_premium_rainbow_ism.webp", "トシヤロゴ揃い", "夢は大きい。だが完走確定ではない。"),
@@ -103,6 +105,8 @@
     if (context.internalState === "prelude") {
       return getScene(context.preludeRemaining <= 8 ? "prelude_deep" : "prelude_hint");
     }
+    if (context.role?.id === "strongCherry") return getScene("normal_role_strong_cherry");
+    if (context.role?.id === "weakCherry") return getScene("normal_role_weak_cherry");
     const stage = rules.stageOrder.includes(context.normalStage) ? context.normalStage : "street";
     const entries = normalSceneWeights[stage].map(([sceneId, weight]) => {
       let adjusted = weight;
