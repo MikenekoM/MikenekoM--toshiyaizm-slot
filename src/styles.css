@@ -1365,7 +1365,7 @@ button {
 .sound-toggle,
 .debug-toggle {
   position: absolute;
-  right: 24px;
+  bottom: 31px;
   z-index: 31;
   min-width: 72px;
   height: 38px;
@@ -1380,11 +1380,11 @@ button {
 }
 
 .sound-toggle {
-  bottom: 132px;
+  right: 310px;
 }
 
 .debug-toggle {
-  bottom: 86px;
+  right: 226px;
 }
 
 .debug-panel {
