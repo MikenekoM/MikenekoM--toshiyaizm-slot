@@ -167,6 +167,10 @@
     });
   }
 
+  function shouldAutoAlignRole(kind, role) {
+    return kind === "normal" && (role?.id === "bell" || role?.id === "replay");
+  }
+
   function spinAction() {
     if (currentSpin) {
       stopNextReel();
@@ -207,6 +211,7 @@
       startedAt,
       stops: [null, null, null],
       forcedStops: nextForcedStops,
+      autoStopPattern: shouldAutoAlignRole(kind, role) ? reelsApi.pickStopPattern(role, rng) : null,
     };
     nextForcedStops = null;
     reelStates.forEach((reelState) => {
@@ -251,7 +256,10 @@
     renderReels();
     const reelState = reelStates[index];
     const forced = currentSpin.forcedStops?.[index];
-    const stopIndex = Number.isFinite(Number(forced)) ? Number(forced) : currentReelIndex(index);
+    const autoStop = currentSpin.autoStopPattern?.[index];
+    let stopIndex = currentReelIndex(index);
+    if (Number.isFinite(Number(autoStop))) stopIndex = Number(autoStop);
+    if (Number.isFinite(Number(forced))) stopIndex = Number(forced);
     const normalizedStopIndex = reelsApi.normalizeIndex(stopIndex);
     currentSpin.stops[index] = normalizedStopIndex;
     if (reelState) {
@@ -431,9 +439,11 @@
         totalPayout: state.bonus.totalPayout,
         currentSetPlan: state.bonus.currentSetPlan,
       } : null,
+      replayCredit: state.replayCredit,
       spinning: Boolean(currentSpin),
       stopped: currentSpin ? currentSpin.stops.map((value) => value !== null) : [true, true, true],
       currentRole: currentSpin?.role?.id || null,
+      autoStopPattern: currentSpin?.autoStopPattern || null,
       lastRole: state.lastRole,
       lastPayout: state.lastPayout,
       lastSceneId: state.lastSceneId,
