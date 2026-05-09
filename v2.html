@@ -2,13 +2,14 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=1536">
     <title>パチスロ トシヤイズム V2</title>
     <link rel="stylesheet" href="./src/v2/slot-v2.css">
   </head>
   <body>
-    <main class="v2-shell">
-      <section class="v2-machine" aria-label="トシヤイズムスロットV2">
+    <main class="v2-stage-viewport">
+      <section class="v2-stage" aria-label="トシヤイズムスロットV2">
+        <div class="v2-machine">
         <img class="v2-machine__art" src="./assets/mock/room-style-shell-v1-alpha.png" alt="">
         <div class="v2-status" aria-label="ゲーム状況">
           <div class="v2-meter"><span>メダル</span><strong id="v2Coins">300</strong></div>
@@ -16,6 +17,10 @@
           <div class="v2-meter"><span>ボーナス間</span><strong id="v2GamesSinceBonus">0</strong></div>
           <div class="v2-meter"><span>成立役</span><strong id="v2Role">待機</strong></div>
           <div class="v2-meter"><span>払い出し</span><strong id="v2Payout">0枚</strong></div>
+        </div>
+        <div class="v2-top-effect" aria-label="上部演出">
+          <span>V2 抽選ランプ</span>
+          <strong id="v2Lamp">待機中</strong>
         </div>
         <div class="v2-scene" id="v2Scene" aria-label="演出画面">
           <div class="v2-scene__media" data-scene-media></div>
@@ -30,6 +35,7 @@
           <div class="v2-reel" data-v2-reel="1"><img src="./assets/reels/reel-strip-center-v2.png" alt=""><img src="./assets/reels/reel-strip-center-v2.png" alt=""></div>
           <div class="v2-reel" data-v2-reel="2"><img src="./assets/reels/reel-strip-right-v2.png" alt=""><img src="./assets/reels/reel-strip-right-v2.png" alt=""></div>
         </div>
+        <div class="v2-reel-glass" aria-hidden="true"></div>
         <div class="v2-payline" aria-hidden="true"></div>
         <div class="v2-controls" aria-label="操作">
           <button type="button" id="v2SpinButton" class="v2-spin">回す</button>
@@ -37,8 +43,8 @@
           <button type="button" data-v2-stop="1">中</button>
           <button type="button" data-v2-stop="2">右</button>
         </div>
-      </section>
-      <aside class="v2-side">
+        </div>
+        <aside class="v2-side">
         <section class="v2-panel">
           <h1>V2 内部抽選版</h1>
           <p class="v2-message" id="v2Message">待機中</p>
@@ -56,6 +62,7 @@
           </div>
         </section>
       </aside>
+      </section>
     </main>
     <script src="./src/v2/slot-v2-rules.js"></script>
     <script src="./src/v2/slot-v2-engine.js"></script>

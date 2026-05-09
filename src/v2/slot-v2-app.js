@@ -11,6 +11,7 @@
     gamesSinceBonus: document.querySelector("#v2GamesSinceBonus"),
     role: document.querySelector("#v2Role"),
     payout: document.querySelector("#v2Payout"),
+    lamp: document.querySelector("#v2Lamp"),
     message: document.querySelector("#v2Message"),
     internalState: document.querySelector("#v2InternalState"),
     normalStage: document.querySelector("#v2NormalStage"),
@@ -134,7 +135,10 @@
       forcedStops: nextForcedStops,
     };
     nextForcedStops = null;
-    dom.reels.forEach((reel) => reel.classList.add("is-spinning"));
+    dom.reels.forEach((reel) => {
+      reel.style.setProperty("--spin-start", reel.style.getPropertyValue("--stop-y") || "0px");
+      reel.classList.add("is-spinning");
+    });
     const scene = kind === "bonusGame"
       ? scenes.pickBonusGameScene((state.bonus?.gamesInSet || 0) + 1)
       : scenes.pickNormalScene({
@@ -258,6 +262,19 @@
     if (dom.gamesSinceBonus) dom.gamesSinceBonus.textContent = state.gamesSinceBonus.toLocaleString("ja-JP");
     if (dom.role) dom.role.textContent = currentSpin?.role?.name || roleById(state.lastRole)?.name || state.lastRole || "待機";
     if (dom.payout) dom.payout.textContent = `${state.lastPayout || 0}枚`;
+    if (dom.lamp) {
+      dom.lamp.textContent = state.phase === "bonus"
+        ? "BONUS"
+        : state.internalState === "bonusReady"
+          ? "確定"
+        : state.preludeRemaining > 0
+          ? "ざわつき"
+        : state.normalStage === "deep"
+          ? "強気配"
+        : state.normalStage === "heat"
+          ? "気配"
+        : "通常";
+    }
     if (dom.message) dom.message.textContent = state.lastMessage || "";
     if (dom.internalState) dom.internalState.textContent = labels[state.internalState] || state.internalState;
     if (dom.normalStage) dom.normalStage.textContent = state.normalStage;
