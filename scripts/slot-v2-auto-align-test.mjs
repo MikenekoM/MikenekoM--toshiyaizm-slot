@@ -91,6 +91,7 @@ const globalPatterns = await page.evaluate(() => ({
   replay: window.ToshiyaSlotV2Reels.getLineStopPatterns("replay"),
   watermelon: window.ToshiyaSlotV2Reels.getLineStopPatterns("watermelon"),
   normal7: window.ToshiyaSlotV2Reels.getLineStopPatterns("normal7"),
+  toshiyaLogo: window.ToshiyaSlotV2Reels.getLineStopPatterns("toshiyaLogo"),
 }));
 
 const bellRate = await page.evaluate(() => window.ToshiyaSlotV2Rules.roles.find((role) => role.id === "bell")?.probability);
@@ -114,6 +115,76 @@ if (directionalSlip.forward !== 1 || directionalSlip.reverse !== 15 || direction
   failed.push(`directional slip API is wrong: ${JSON.stringify(directionalSlip)}`);
 }
 
+await resetPage();
+await page.evaluate(() => {
+  window.__toshiyaSlotV2Test.setState({
+    coins: 1000,
+    phase: "normal",
+    internalState: "bonusReady",
+    pendingBonus: {
+      entrySymbol: "toshiyaLogo",
+      entryName: "トシヤロゴ揃い",
+      rateLabel: "89%",
+      rate: 0.89,
+      stockSets: 3,
+      premium: true,
+    },
+    bonus: null,
+  });
+  window.__toshiyaSlotV2Test.setRandomSequence([0.99, 0.99, 0.99, 0.99]);
+});
+const logoReadyLabel = await page.textContent("#v2SpinButton");
+if (logoReadyLabel !== "ロゴ") failed.push(`logo ready spin button should say ロゴ, got ${logoReadyLabel}`);
+await page.keyboard.press("Space");
+await page.waitForTimeout(80);
+const logoDuring = await state();
+if (logoDuring.currentRole !== "toshiyaLogo" || logoDuring.spinKind !== "bonusEntry") {
+  failed.push(`logo entry did not start as bonusEntry: ${JSON.stringify(logoDuring)}`);
+}
+if (!logoDuring.autoStopPattern || !logoDuring.autoStopAligned) {
+  failed.push(`logo entry should auto-align without meoshi: ${JSON.stringify(logoDuring)}`);
+}
+if (!globalPatterns.toshiyaLogo.some((pattern) => sameStops(logoDuring.autoStopPattern || [], pattern))) {
+  failed.push(`logo entry autoStopPattern is not a logo line: ${JSON.stringify(logoDuring.autoStopPattern)}`);
+}
+await page.keyboard.press("KeyZ");
+await page.keyboard.press("KeyX");
+await page.keyboard.press("KeyC");
+await page.waitForTimeout(120);
+const logoAfter = await state();
+assertStopsMatch("toshiyaLogo", logoAfter);
+if (logoAfter.phase !== "bonus" || logoAfter.lastSceneId !== "bonus_open_logo") {
+  failed.push(`logo entry did not auto-start bonus after stops: ${JSON.stringify(logoAfter)}`);
+}
+
+await resetPage();
+await page.evaluate(() => {
+  window.__toshiyaSlotV2Test.setState({
+    coins: 1000,
+    phase: "normal",
+    internalState: "bonusReady",
+    pendingBonus: {
+      entrySymbol: "normal7",
+      entryName: "通常7揃い",
+      rateLabel: "79%",
+      rate: 0.79,
+      stockSets: 1,
+      premium: false,
+    },
+    bonus: null,
+  });
+});
+await page.keyboard.press("Space");
+await page.waitForTimeout(80);
+const sevenDuring = await state();
+if (sevenDuring.currentRole !== "normal7" || sevenDuring.spinKind !== "bonusEntry") {
+  failed.push(`normal7 entry did not start as bonusEntry: ${JSON.stringify(sevenDuring)}`);
+}
+if (sevenDuring.autoStopPattern || sevenDuring.autoStopAligned !== null) {
+  failed.push(`normal7 entry should remain manual meoshi: ${JSON.stringify(sevenDuring)}`);
+}
+
+await resetPage();
 let result = await forceRoleSpin("bell", [0]);
 assertRoleAutoAligned("bell", result.during, result.after);
 if (!result.during.autoStopAligned) failed.push("normal bell did not mark autoStopAligned");

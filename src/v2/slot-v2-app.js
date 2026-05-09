@@ -230,8 +230,13 @@
     return engine.isNormalMeoshiPayoutRole?.(role) || rules.normalMeoshiPayoutRoles?.includes(role?.id);
   }
 
+  function isAutoBonusEntryRole(role) {
+    return role?.id === "toshiyaLogo";
+  }
+
   function isManualMeoshiSpin(spin = currentSpin) {
-    return spin?.kind === "bonusEntry" || (spin?.kind === "normal" && isNormalMeoshiPayoutRole(spin.role));
+    return (spin?.kind === "bonusEntry" && !isAutoBonusEntryRole(spin.role))
+      || (spin?.kind === "normal" && isNormalMeoshiPayoutRole(spin.role));
   }
 
   function getMeoshiSlipCells(spin = currentSpin) {
@@ -317,6 +322,12 @@
 
   function buildAutoStopPattern(kind, role) {
     if (kind === "bonusGame") {
+      return {
+        pattern: pickSafeLineStopPattern(role, kind),
+        aligned: true,
+      };
+    }
+    if (kind === "bonusEntry" && isAutoBonusEntryRole(role)) {
       return {
         pattern: pickSafeLineStopPattern(role, kind),
         aligned: true,
@@ -447,7 +458,9 @@
         : `${role.name}。停止形は内部で決定済み。`;
       showRoleFlash(role);
     } else if (kind === "bonusEntry") {
-      state.lastMessage = `${role.name}を狙え。揃うまでボーナスは始まらない。`;
+      state.lastMessage = isAutoBonusEntryRole(role)
+        ? `${role.name}。トシヤロゴは自動で揃う。`
+        : `${role.name}を狙え。揃うまでボーナスは始まらない。`;
     } else {
       state.lastMessage = `${role.name}。内部成立で自動停止。`;
     }
@@ -846,7 +859,7 @@
         : state.phase === "bonus" && state.bonus?.gamesInSet >= state.bonus?.setGames
         ? "ジャッジ"
         : state.internalState === "bonusReady" && state.phase !== "bonus"
-          ? "7狙い"
+          ? state.pendingBonus?.entrySymbol === "toshiyaLogo" ? "ロゴ" : "7狙い"
         : "回す";
     }
   }
