@@ -428,16 +428,9 @@ button {
   -webkit-user-drag: none;
 }
 
-.v2-reel__copy--prev {
-  --copy-offset: -1120px;
-}
-
-.v2-reel__copy--current {
+.v2-reel__copy,
+.v2-reel__source {
   --copy-offset: 0px;
-}
-
-.v2-reel__copy--next {
-  --copy-offset: 1120px;
 }
 
 .v2-reel.is-spinning img {

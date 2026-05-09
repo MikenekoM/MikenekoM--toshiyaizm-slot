@@ -43,8 +43,10 @@ function sameLockedReel(before, after, label) {
   if (!after.locked || after.spinning) failed.push(`${label}: reel is not locked after later stop`);
 }
 
-function copiesCoverViewport(offset, viewportHeight = 205, stripHeight = 1120) {
-  const intervals = [-stripHeight, 0, stripHeight]
+const expectedCopyOffsets = [-5600, -4480, -3360, -2240, -1120, 0, 1120, 2240, 3360, 4480, 5600];
+
+function copiesCoverViewport(offset, viewportHeight = 205, stripHeight = 1120, copyOffsets = expectedCopyOffsets) {
+  const intervals = copyOffsets
     .map((copyOffset) => [offset + copyOffset, offset + copyOffset + stripHeight])
     .sort((a, b) => a[0] - b[0]);
   let coveredUntil = 0;
@@ -58,6 +60,16 @@ function copiesCoverViewport(offset, viewportHeight = 205, stripHeight = 1120) {
 }
 
 await resetPage();
+const copyInfo = await page.evaluate(() => [...document.querySelectorAll("[data-v2-reel]")].map((reel) => (
+  [...reel.querySelectorAll("img")].map((image) => Number.parseInt(image.style.getPropertyValue("--copy-offset"), 10))
+)));
+copyInfo.forEach((offsets, index) => {
+  if (offsets.length !== 11) failed.push(`reel ${index} expected 11 generated copies, got ${offsets.length}`);
+  if (JSON.stringify(offsets) !== JSON.stringify(expectedCopyOffsets)) {
+    failed.push(`reel ${index} copy offsets are wrong: ${JSON.stringify(offsets)}`);
+  }
+});
+
 await page.keyboard.press("Space");
 await page.waitForTimeout(180);
 await page.keyboard.press("KeyX");
@@ -104,6 +116,9 @@ sameLockedReel(middleAfterSpaceStop, finalSpaceReels[1], "middle reel after thir
 for (let index = 0; index < 16; index += 1) {
   const offset = index * -70;
   if (!copiesCoverViewport(offset)) failed.push(`stop index ${index} leaves an uncovered reel viewport area`);
+}
+for (let offset = -5600; offset <= 5600; offset += 137) {
+  if (!copiesCoverViewport(offset)) failed.push(`raw offset ${offset} leaves an uncovered reel viewport area`);
 }
 
 await resetPage();

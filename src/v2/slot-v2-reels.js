@@ -12,6 +12,15 @@
     return Math.min(diff, count - diff);
   }
 
+  function slipCellsFromPress(pressedIndex, targetIndex) {
+    const count = rules.reel.symbolCount;
+    return (normalizeIndex(pressedIndex) - normalizeIndex(targetIndex) + count) % count;
+  }
+
+  function isSlipAllowed(pressedIndex, targetIndex, maxSlipCells) {
+    return slipCellsFromPress(pressedIndex, targetIndex) <= Math.max(0, Number(maxSlipCells) || 0);
+  }
+
   function getStopPatterns(roleOrId) {
     const id = typeof roleOrId === "string" ? roleOrId : roleOrId?.id;
     return rules.reel.stopPatterns[id] || rules.reel.stopPatterns.blank;
@@ -103,17 +112,20 @@
     const baseWrong = findWrongCherryStop(roleOrId, base, existingStops);
     if (!baseWrong) return { stopIndex: base, adjusted: false, wrongCherry: null };
     const maxNudgeCells = Math.max(0, Number(options.maxNudgeCells ?? 2));
-    const deltas = [];
     for (let distance = 1; distance <= maxNudgeCells; distance += 1) {
-      deltas.push(distance, -distance);
-    }
-    for (const delta of deltas) {
-      const candidate = normalizeIndex(base + delta);
+      const candidate = normalizeIndex(base - distance);
       if (
         !findWrongCherryStop(roleOrId, candidate) &&
         (!options.avoidRoleCherry || !leftHasRoleCherry(roleOrId, [candidate, null, null]))
       ) {
-        return { stopIndex: candidate, adjusted: true, wrongCherry: baseWrong, nudgeCells: delta };
+        return {
+          stopIndex: candidate,
+          adjusted: true,
+          wrongCherry: baseWrong,
+          nudgeCells: -distance,
+          slipCells: distance,
+          directionAllowed: true,
+        };
       }
     }
     return { stopIndex: base, adjusted: false, wrongCherry: baseWrong };
@@ -185,14 +197,17 @@
     const baseLine = wouldCompleteLineBySymbols(reelIndex, base, existingStops, blockedSymbols);
     if (!baseLine) return { stopIndex: base, adjusted: false, blockedLine: null };
     const maxNudgeCells = Math.max(0, Number(options.maxNudgeCells ?? 2));
-    const deltas = [];
     for (let distance = 1; distance <= maxNudgeCells; distance += 1) {
-      deltas.push(distance, -distance);
-    }
-    for (const delta of deltas) {
-      const candidate = normalizeIndex(base + delta);
+      const candidate = normalizeIndex(base - distance);
       if (!wouldCompleteLineBySymbols(reelIndex, candidate, existingStops, blockedSymbols)) {
-        return { stopIndex: candidate, adjusted: true, blockedLine: baseLine, nudgeCells: delta };
+        return {
+          stopIndex: candidate,
+          adjusted: true,
+          blockedLine: baseLine,
+          nudgeCells: -distance,
+          slipCells: distance,
+          directionAllowed: true,
+        };
       }
     }
     return { stopIndex: base, adjusted: false, blockedLine: baseLine };
@@ -244,15 +259,25 @@
     if (!Number.isFinite(reel) || reel < 0 || reel > 2) return null;
     if (isCherryRole(roleOrId)) {
       if (reel !== 0) return null;
-      const candidates = getLeftCherryStops(roleOrId).map((stopIndex) => ({
-        stopIndex,
-        distance: distanceCells(actual, stopIndex),
-        line: { id: "left-cherry", label: "左チェリー", rows: [null, null, null], symbol: "cherry" },
-        pattern: [stopIndex, null, null],
-      }));
-      const best = candidates.sort((a, b) => a.distance - b.distance)[0];
-      return best && best.distance <= maxSlipCells
-        ? { ...best, pressedIndex: actual, assisted: best.stopIndex !== actual }
+      const candidates = getLeftCherryStops(roleOrId).map((stopIndex) => {
+        const slipCells = slipCellsFromPress(actual, stopIndex);
+        return {
+          stopIndex,
+          slipCells,
+          distance: slipCells,
+          line: { id: "left-cherry", label: "左チェリー", rows: [null, null, null], symbol: "cherry" },
+          pattern: [stopIndex, null, null],
+        };
+      });
+      const best = candidates.sort((a, b) => a.slipCells - b.slipCells)[0];
+      return best && best.slipCells <= maxSlipCells
+        ? {
+          ...best,
+          pressedIndex: actual,
+          assisted: best.stopIndex !== actual,
+          directionAllowed: true,
+          blockedByDirection: false,
+        }
         : null;
     }
 
@@ -261,15 +286,26 @@
     const candidates = getLineStopPatterns(roleOrId).filter((pattern) => existing.every((value, index) => {
       if (index === reel || value === null || value === undefined) return true;
       return normalizeIndex(value) === normalizeIndex(pattern[index]);
-    })).filter((pattern) => !findLineBySymbols(pattern, forbiddenLineSymbols)).map((pattern) => ({
-      stopIndex: normalizeIndex(pattern[reel]),
-      distance: distanceCells(actual, pattern[reel]),
-      line: findRoleLine(roleOrId, pattern),
-      pattern: pattern.map(normalizeIndex),
-    }));
-    const best = candidates.sort((a, b) => a.distance - b.distance)[0];
-    return best && best.distance <= maxSlipCells && best.line
-      ? { ...best, pressedIndex: actual, assisted: best.stopIndex !== actual }
+    })).filter((pattern) => !findLineBySymbols(pattern, forbiddenLineSymbols)).map((pattern) => {
+      const stopIndex = normalizeIndex(pattern[reel]);
+      const slipCells = slipCellsFromPress(actual, stopIndex);
+      return {
+        stopIndex,
+        slipCells,
+        distance: slipCells,
+        line: findRoleLine(roleOrId, pattern),
+        pattern: pattern.map(normalizeIndex),
+      };
+    });
+    const best = candidates.sort((a, b) => a.slipCells - b.slipCells)[0];
+    return best && best.slipCells <= maxSlipCells && best.line
+      ? {
+        ...best,
+        pressedIndex: actual,
+        assisted: best.stopIndex !== actual,
+        directionAllowed: true,
+        blockedByDirection: false,
+      }
       : null;
   }
 
@@ -385,6 +421,8 @@
   global.ToshiyaSlotV2Reels = {
     normalizeIndex,
     distanceCells,
+    slipCellsFromPress,
+    isSlipAllowed,
     getStopPatterns,
     getActiveLines,
     getVisibleSymbol,

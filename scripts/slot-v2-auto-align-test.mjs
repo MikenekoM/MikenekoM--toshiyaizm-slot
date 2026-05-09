@@ -105,6 +105,14 @@ const meoshiControlIds = await page.evaluate(() => [
   "v2DebugMeoshiForce",
 ].filter((id) => !document.getElementById(id)));
 if (meoshiControlIds.length) failed.push(`missing meoshi debug controls: ${meoshiControlIds.join(", ")}`);
+const directionalSlip = await page.evaluate(() => ({
+  forward: window.ToshiyaSlotV2Reels.slipCellsFromPress(6, 5),
+  reverse: window.ToshiyaSlotV2Reels.slipCellsFromPress(6, 7),
+  reverseAllowed: window.ToshiyaSlotV2Reels.isSlipAllowed(6, 7, 2),
+}));
+if (directionalSlip.forward !== 1 || directionalSlip.reverse !== 15 || directionalSlip.reverseAllowed) {
+  failed.push(`directional slip API is wrong: ${JSON.stringify(directionalSlip)}`);
+}
 
 let result = await forceRoleSpin("bell", [0]);
 assertRoleAutoAligned("bell", result.during, result.after);
@@ -201,6 +209,10 @@ await page.keyboard.press("KeyZ");
 await page.keyboard.press("KeyX");
 await page.keyboard.press("KeyC");
 await page.waitForTimeout(120);
+const debugAfterStops = await state();
+if (debugAfterStops.meoshiDebug?.roleId !== "strongCherry" || !Object.hasOwn(debugAfterStops.meoshiDebug?.slips?.[0] || {}, "pressedIndex")) {
+  failed.push(`meoshi debug output did not include last stop details: ${JSON.stringify(debugAfterStops.meoshiDebug)}`);
+}
 
 await page.screenshot({ path: path.join(root, "tmp", "slot-v2-auto-align-test.png"), fullPage: false });
 await browser.close();

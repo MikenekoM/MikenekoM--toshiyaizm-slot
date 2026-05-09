@@ -64,6 +64,13 @@ for (const item of lineResults) {
 const bellMiss = reels.evaluateStops(bell, reels.buildFailedStops(bell, engine.createSeededRng(41)));
 if (bellMiss.success) failed.push(`buildFailedStops produced a bell payline: ${JSON.stringify(bellMiss)}`);
 
+if (reels.slipCellsFromPress(6, 5) !== 1) {
+  failed.push(`directional slip 6 -> 5 should be 1 cell, got ${reels.slipCellsFromPress(6, 5)}`);
+}
+if (reels.slipCellsFromPress(6, 7) !== 15 || reels.isSlipAllowed(6, 7, 2)) {
+  failed.push(`reverse slip 6 -> 7 should not be allowed: ${reels.slipCellsFromPress(6, 7)}`);
+}
+
 const visualRoleIds = ["bell", "replay", "watermelon", "normal7", "toshiyaLogo"];
 const roleAlignmentResults = visualRoleIds.map((roleId) => {
   const role = rules.roles.find((item) => item.id === roleId) || { id: roleId, targetable: true };
@@ -144,6 +151,28 @@ const oldWatermelonFalseLine = reels.evaluateStops(
 if (oldWatermelonFalseLine.success) {
   failed.push(`watermelon paid on non-watermelon visual line: ${JSON.stringify(oldWatermelonFalseLine)}`);
 }
+const watermelon = rules.roles.find((role) => role.id === "watermelon");
+const watermelonMiddlePattern = reels.getLineStopPatterns("watermelon", "middle")[0];
+const reverseRightWatermelon = reels.findSlipStop(
+  watermelon,
+  2,
+  reels.normalizeIndex(watermelonMiddlePattern[2] - 1),
+  [watermelonMiddlePattern[0], watermelonMiddlePattern[1], null],
+  { maxSlipCells: 2 },
+);
+const forwardRightWatermelon = reels.findSlipStop(
+  watermelon,
+  2,
+  reels.normalizeIndex(watermelonMiddlePattern[2] + 1),
+  [watermelonMiddlePattern[0], watermelonMiddlePattern[1], null],
+  { maxSlipCells: 2 },
+);
+if (reverseRightWatermelon) {
+  failed.push(`right watermelon slipped backward to a target above the press: ${JSON.stringify({ watermelonMiddlePattern, reverseRightWatermelon })}`);
+}
+if (!forwardRightWatermelon || forwardRightWatermelon.slipCells !== 1 || !forwardRightWatermelon.directionAllowed) {
+  failed.push(`right watermelon did not slip forward by 1 cell: ${JSON.stringify({ watermelonMiddlePattern, forwardRightWatermelon })}`);
+}
 
 const weakCherry = rules.roles.find((role) => role.id === "weakCherry");
 const weakTop = reels.evaluateStops(weakCherry, [7, 0, 0]);
@@ -176,7 +205,7 @@ const avoidWrongWeak = reels.avoidWrongCherryStop(weakCherry, 0, 6, [null, null,
 if (!avoidWrongWeak.adjusted || reels.findWrongCherryStop(weakCherry, avoidWrongWeak.stopIndex) || reels.leftHasRoleCherry(weakCherry, [avoidWrongWeak.stopIndex, null, null])) {
   failed.push(`weak cherry wrong middle row was not nudged away: ${JSON.stringify(avoidWrongWeak)}`);
 }
-const avoidWrongStrong = reels.avoidWrongCherryStop(strong, 0, 7, [null, null, null], { maxNudgeCells: 2, avoidRoleCherry: true });
+const avoidWrongStrong = reels.avoidWrongCherryStop(strong, 0, 7, [null, null, null], { maxNudgeCells: 3, avoidRoleCherry: true });
 if (!avoidWrongStrong.adjusted || reels.findWrongCherryStop(strong, avoidWrongStrong.stopIndex) || reels.leftHasRoleCherry(strong, [avoidWrongStrong.stopIndex, null, null])) {
   failed.push(`strong cherry wrong corner row was not nudged away: ${JSON.stringify(avoidWrongStrong)}`);
 }
@@ -231,5 +260,5 @@ if (reels.findVisualLine(nonWinningStops) || reels.leftHasCherry(nonWinningStops
   failed.push(`non-winning stops showed a visual win: ${JSON.stringify({ nonWinningStops, line: reels.findVisualLine(nonWinningStops), leftCherry: reels.leftHasCherry(nonWinningStops) })}`);
 }
 
-console.log(JSON.stringify({ failed, successEvent, visualMissEvent, replaySuccess, replayMiss, lineResults, bellMiss, roleAlignmentResults, chanceOnLogo, logoLine, avoidLogoLine, oldWatermelonFalseLine, weakTop, weakMiddle, weakBottom, strongMiddle, strongTop, strongBottom, decorativeExamples, avoidFaceLine, nonWinningStops }, null, 2));
+console.log(JSON.stringify({ failed, successEvent, visualMissEvent, replaySuccess, replayMiss, lineResults, bellMiss, roleAlignmentResults, chanceOnLogo, logoLine, avoidLogoLine, oldWatermelonFalseLine, reverseRightWatermelon, forwardRightWatermelon, weakTop, weakMiddle, weakBottom, strongMiddle, strongTop, strongBottom, decorativeExamples, avoidFaceLine, nonWinningStops }, null, 2));
 if (failed.length) process.exitCode = 1;

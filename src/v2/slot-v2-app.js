@@ -51,6 +51,7 @@
   let nextForcedRoleId = null;
   let nextForcedStops = null;
   let judgeRunning = false;
+  let lastMeoshiResult = null;
   let virtualNow = 0;
   let virtualTimers = [];
   let useVirtualTimers = false;
@@ -58,7 +59,9 @@
   let roleFlashToken = 0;
   const reelCellHeight = rules.reel.cellHeight;
   const reelCycleHeight = rules.reel.symbolCount * reelCellHeight;
+  const reelCopyRange = 5;
   const reelSpeedPxPerMs = reelCellHeight / rules.reel.spinMsPerSymbol;
+  prepareReelCopies();
   const reelStates = dom.reels.map((reel, index) => ({
     index,
     reel,
@@ -69,6 +72,24 @@
     locked: true,
     spinning: false,
   }));
+
+  function prepareReelCopies() {
+    dom.reels.forEach((reel) => {
+      const source = reel.querySelector("img");
+      const src = source?.getAttribute("src");
+      if (!src) return;
+      reel.replaceChildren();
+      for (let copy = -reelCopyRange; copy <= reelCopyRange; copy += 1) {
+        const image = document.createElement("img");
+        image.className = "v2-reel__copy";
+        image.src = src;
+        image.alt = "";
+        image.setAttribute("aria-hidden", "true");
+        image.style.setProperty("--copy-offset", `${copy * reelCycleHeight}px`);
+        reel.appendChild(image);
+      }
+    });
+  }
 
   function now() {
     return useVirtualTimers ? virtualNow : performance.now();
@@ -390,6 +411,7 @@
         ? getPendingEntryRole()
         : engine.drawRole(rng));
     const startedAt = now();
+    lastMeoshiResult = null;
     currentSpin = {
       kind,
       role,
@@ -467,9 +489,13 @@
         stopIndex = slip.stopIndex;
         currentSpin.meoshiSlips[index] = slip;
       } else {
+        const pressedIndex = reelsApi.normalizeIndex(stopIndex);
         currentSpin.meoshiSlips[index] = {
-          pressedIndex: reelsApi.normalizeIndex(stopIndex),
-          stopIndex: reelsApi.normalizeIndex(stopIndex),
+          pressedIndex,
+          stopIndex: pressedIndex,
+          slipCells: null,
+          directionAllowed: false,
+          blockedByDirection: true,
           assisted: false,
           distance: Infinity,
         };
@@ -477,7 +503,7 @@
     }
     if (!hasForcedStop && !hasAutoStop) {
       const wrongCherryAdjusted = reelsApi.avoidWrongCherryStop?.(currentSpin.role, index, stopIndex, currentSpin.stops, {
-        maxNudgeCells: 2,
+        maxNudgeCells: 3,
         avoidRoleCherry: true,
       });
       if (wrongCherryAdjusted?.adjusted) {
@@ -514,6 +540,7 @@
     const spin = currentSpin;
     currentSpin = null;
     stopReelLoop();
+    lastMeoshiResult = buildMeoshiDebug(spin);
     const stopResult = reelsApi.evaluateStops(spin.role, spin.stops);
 
     if (spin.kind === "bonusEntry") {
@@ -635,6 +662,7 @@
     hideRoleFlash();
     currentSpin = null;
     judgeRunning = false;
+    lastMeoshiResult = null;
     const roleId = dom.debugMeoshiRole?.value || "watermelon";
     const entryRole = rules.entrySymbols.find((entry) => entry.id === roleId);
     if (entryRole) {
@@ -701,6 +729,7 @@
     hideRoleFlash();
     currentSpin = null;
     judgeRunning = false;
+    lastMeoshiResult = null;
     const requestedState = dom.debugState?.value || "normal";
     const requestedStage = dom.debugStage?.value || state.normalStage || "street";
     const coins = Math.max(0, Math.min(999999, Math.floor(Number(dom.debugCoins?.value) || 0)));
@@ -745,6 +774,7 @@
     hideRoleFlash();
     currentSpin = null;
     judgeRunning = false;
+    lastMeoshiResult = null;
     state = engine.initialState();
     setReelStops([0, 0, 0]);
     saveState();
@@ -833,6 +863,31 @@
     });
   }
 
+  function buildMeoshiDebug(spin) {
+    if (!spin) return null;
+    return {
+      kind: spin.kind,
+      roleId: spin.role?.id || null,
+      stops: spin.stops.map((value) => value === null || value === undefined ? null : reelsApi.normalizeIndex(value)),
+      slips: spin.meoshiSlips.map((slip) => slip ? {
+        pressedIndex: slip.pressedIndex ?? null,
+        stopIndex: slip.stopIndex ?? null,
+        slipCells: slip.slipCells ?? null,
+        directionAllowed: Boolean(slip.directionAllowed),
+        blockedByDirection: Boolean(slip.blockedByDirection),
+        assisted: Boolean(slip.assisted),
+      } : null),
+      safetyNudges: spin.decorativeNudges.map((nudge) => nudge ? {
+        stopIndex: nudge.stopIndex ?? null,
+        slipCells: nudge.slipCells ?? null,
+        nudgeCells: nudge.nudgeCells ?? null,
+        directionAllowed: Boolean(nudge.directionAllowed),
+        adjusted: Boolean(nudge.adjusted),
+        blockedSymbol: nudge.blockedLine?.symbol || nudge.decorativeLine?.symbol || nudge.wrongCherry?.symbol || null,
+      } : null),
+    };
+  }
+
   function renderGameToText() {
     renderReels();
     return JSON.stringify({
@@ -870,6 +925,7 @@
       roleFlashVisible: Boolean(dom.roleFlash && !dom.roleFlash.hidden && dom.roleFlash.classList.contains("is-visible")),
       roleFlashRole: dom.roleFlash?.dataset.role || null,
       meoshiTuning: { ...meoshiTuning },
+      meoshiDebug: currentSpin ? buildMeoshiDebug(currentSpin) : lastMeoshiResult,
       reels: getReelDebug(),
     });
   }
