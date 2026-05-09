@@ -33,6 +33,20 @@
   let virtualNow = 0;
   let virtualTimers = [];
   let useVirtualTimers = false;
+  let reelFrameId = null;
+  const reelCellHeight = rules.reel.cellHeight;
+  const reelCycleHeight = rules.reel.symbolCount * reelCellHeight;
+  const reelSpeedPxPerMs = reelCellHeight / rules.reel.spinMsPerSymbol;
+  const reelStates = dom.reels.map((reel, index) => ({
+    index,
+    reel,
+    offset: 0,
+    spinStartOffset: 0,
+    spinStartedAt: 0,
+    stoppedIndex: 0,
+    locked: true,
+    spinning: false,
+  }));
 
   function now() {
     return useVirtualTimers ? virtualNow : performance.now();
@@ -85,12 +99,71 @@
     return rules.roles.find((role) => role.id === roleId) || null;
   }
 
+  function normalizeOffset(offset) {
+    const raw = Number(offset) || 0;
+    const positive = ((raw % reelCycleHeight) + reelCycleHeight) % reelCycleHeight;
+    return positive === 0 ? 0 : positive - reelCycleHeight;
+  }
+
+  function indexToOffset(index) {
+    return reelsApi.normalizeIndex(index) * -reelCellHeight;
+  }
+
+  function offsetToIndex(offset) {
+    return reelsApi.normalizeIndex(Math.round(normalizeOffset(offset) / -reelCellHeight));
+  }
+
+  function applyReelOffset(reelState, offset) {
+    if (!reelState?.reel) return;
+    reelState.offset = normalizeOffset(offset);
+    const value = `${reelState.offset}px`;
+    reelState.reel.style.setProperty("--reel-offset", value);
+    reelState.reel.style.setProperty("--stop-y", value);
+  }
+
+  function computeSpinOffset(reelState, at = now()) {
+    const phaseOffsetMs = reelState.index * 37;
+    const elapsed = Math.max(0, at - reelState.spinStartedAt + phaseOffsetMs);
+    return normalizeOffset(reelState.spinStartOffset + elapsed * reelSpeedPxPerMs);
+  }
+
+  function renderReels() {
+    const at = now();
+    reelStates.forEach((reelState) => {
+      if (reelState.spinning && !reelState.locked) {
+        applyReelOffset(reelState, computeSpinOffset(reelState, at));
+      }
+    });
+  }
+
+  function startReelLoop() {
+    if (useVirtualTimers || reelFrameId) return;
+    const tick = () => {
+      reelFrameId = null;
+      renderReels();
+      if (currentSpin && reelStates.some((reelState) => reelState.spinning)) {
+        reelFrameId = window.requestAnimationFrame(tick);
+      }
+    };
+    reelFrameId = window.requestAnimationFrame(tick);
+  }
+
+  function stopReelLoop() {
+    if (!reelFrameId) return;
+    window.cancelAnimationFrame(reelFrameId);
+    reelFrameId = null;
+  }
+
   function setReelStops(stopIndexes) {
     stopIndexes.forEach((stopIndex, index) => {
-      const reel = dom.reels[index];
-      if (!reel) return;
-      reel.classList.remove("is-spinning");
-      reel.style.setProperty("--stop-y", `${reelsApi.normalizeIndex(stopIndex) * -rules.reel.cellHeight}px`);
+      const reelState = reelStates[index];
+      if (!reelState) return;
+      const stoppedIndex = reelsApi.normalizeIndex(stopIndex);
+      reelState.spinning = false;
+      reelState.locked = true;
+      reelState.stoppedIndex = stoppedIndex;
+      reelState.reel?.classList.remove("is-spinning", "is-stopping");
+      applyReelOffset(reelState, indexToOffset(stoppedIndex));
     });
   }
 
@@ -127,18 +200,26 @@
     const forcedRole = nextForcedRoleId ? roleById(nextForcedRoleId) : null;
     nextForcedRoleId = null;
     const role = forcedRole || (kind === "bonusGame" ? engine.drawBonusRole(rng) : engine.drawRole(rng));
+    const startedAt = now();
     currentSpin = {
       kind,
       role,
-      startedAt: now(),
+      startedAt,
       stops: [null, null, null],
       forcedStops: nextForcedStops,
     };
     nextForcedStops = null;
-    dom.reels.forEach((reel) => {
-      reel.style.setProperty("--spin-start", reel.style.getPropertyValue("--stop-y") || "0px");
-      reel.classList.add("is-spinning");
+    reelStates.forEach((reelState) => {
+      reelState.spinStartOffset = reelState.offset;
+      reelState.spinStartedAt = startedAt;
+      reelState.stoppedIndex = null;
+      reelState.locked = false;
+      reelState.spinning = true;
+      reelState.reel?.classList.remove("is-stopping");
+      reelState.reel?.classList.add("is-spinning");
     });
+    renderReels();
+    startReelLoop();
     const scene = kind === "bonusGame"
       ? scenes.pickBonusGameScene((state.bonus?.gamesInSet || 0) + 1)
       : scenes.pickNormalScene({
@@ -154,8 +235,10 @@
   }
 
   function currentReelIndex(index) {
-    const elapsed = now() - currentSpin.startedAt + index * 37;
-    return reelsApi.normalizeIndex(Math.floor(elapsed / rules.reel.spinMsPerSymbol));
+    const reelState = reelStates[index];
+    if (!reelState) return 0;
+    const offset = reelState.spinning ? computeSpinOffset(reelState) : reelState.offset;
+    return offsetToIndex(offset);
   }
 
   function stopNextReel() {
@@ -165,11 +248,23 @@
 
   function stopReel(index) {
     if (!currentSpin || currentSpin.stops[index] !== null) return;
+    renderReels();
+    const reelState = reelStates[index];
     const forced = currentSpin.forcedStops?.[index];
     const stopIndex = Number.isFinite(Number(forced)) ? Number(forced) : currentReelIndex(index);
-    currentSpin.stops[index] = reelsApi.normalizeIndex(stopIndex);
-    dom.reels[index]?.classList.remove("is-spinning");
-    dom.reels[index]?.style.setProperty("--stop-y", `${currentSpin.stops[index] * -rules.reel.cellHeight}px`);
+    const normalizedStopIndex = reelsApi.normalizeIndex(stopIndex);
+    currentSpin.stops[index] = normalizedStopIndex;
+    if (reelState) {
+      reelState.spinning = false;
+      reelState.locked = true;
+      reelState.stoppedIndex = normalizedStopIndex;
+      reelState.reel?.classList.remove("is-spinning");
+      reelState.reel?.classList.add("is-stopping");
+      applyReelOffset(reelState, indexToOffset(normalizedStopIndex));
+      schedule(120, () => {
+        reelState.reel?.classList.remove("is-stopping");
+      });
+    }
     if (currentSpin.stops.every((value) => value !== null)) finishSpin();
     render();
   }
@@ -178,11 +273,8 @@
     if (!currentSpin) return;
     const spin = currentSpin;
     currentSpin = null;
+    stopReelLoop();
     const stopResult = reelsApi.evaluateStops(spin.role, spin.stops);
-    const visualStops = stopResult.success
-      ? (stopResult.matchedPattern || reelsApi.pickStopPattern(spin.role, rng))
-      : reelsApi.buildFailedStops(spin.role, rng);
-    setReelStops(visualStops);
 
     if (spin.kind === "bonusGame") {
       const event = engine.resolveBonusGame(state, stopResult, rng, spin.role);
@@ -299,7 +391,26 @@
     }
   }
 
+  function getReelDebug() {
+    const at = now();
+    return reelStates.map((reelState) => {
+      const elapsed = Math.max(0, at - reelState.spinStartedAt + reelState.index * 37);
+      const rawOffset = reelState.spinning
+        ? reelState.spinStartOffset + elapsed * reelSpeedPxPerMs
+        : reelState.offset;
+      return {
+        index: reelState.index,
+        offset: Number(reelState.offset.toFixed(3)),
+        rawOffset: Number(rawOffset.toFixed(3)),
+        stoppedIndex: reelState.stoppedIndex,
+        locked: reelState.locked,
+        spinning: reelState.spinning,
+      };
+    });
+  }
+
   function renderGameToText() {
+    renderReels();
     return JSON.stringify({
       route: "v2",
       coins: state.coins,
@@ -328,6 +439,7 @@
       lastSceneId: state.lastSceneId,
       message: state.lastMessage,
       judgeRunning,
+      reels: getReelDebug(),
     });
   }
 
@@ -352,7 +464,9 @@
   global.advanceTime = (ms) => {
     useVirtualTimers = true;
     virtualNow += Math.max(0, Number(ms) || 0);
+    renderReels();
     runVirtualTimers();
+    renderReels();
     render();
     return renderGameToText();
   };
@@ -386,6 +500,10 @@
     },
     getState() {
       return renderGameToText();
+    },
+    getReels() {
+      renderReels();
+      return JSON.stringify(getReelDebug());
     },
   };
 
