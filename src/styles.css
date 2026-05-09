@@ -988,7 +988,7 @@ button {
   border-radius: 2px;
   background: #fff;
   box-shadow: none;
-  --spin-distance: -560px;
+  --spin-distance: 560px;
 }
 
 .live-reel img {
