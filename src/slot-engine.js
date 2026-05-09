@@ -33,6 +33,36 @@
     return pickWeighted(rules.roles, rng);
   }
 
+  function getBonusGamesPerSet() {
+    return Math.max(1, Number(rules.bonusGame?.gamesPerSet) || 30);
+  }
+
+  function drawBonusGameRole(rng = Math.random, forcedRoleId = null) {
+    const table = Array.isArray(rules.bonusGame?.roles) && rules.bonusGame.roles.length
+      ? rules.bonusGame.roles
+      : [
+          { roleId: "bell", name: "ベル", payout: 8, weight: 1 },
+          { roleId: "replay", name: "Tリプレイ", payout: 8, weight: 1 },
+        ];
+    const entry = forcedRoleId
+      ? (table.find((item) => item.roleId === forcedRoleId) || table[0])
+      : pickWeighted(table, rng);
+    const baseRole = rules.roles.find((role) => role.id === entry.roleId) || rules.roles[0];
+    return {
+      ...baseRole,
+      id: entry.roleId,
+      name: entry.name || baseRole.name,
+      payout: Math.max(0, Number(entry.payout) || 0),
+      effect: "normal",
+      rare: false,
+      strongRare: false,
+      quiet: false,
+      heat: 1,
+      slip: [0, 0, 0],
+      bonusGame: true,
+    };
+  }
+
   function drawPreBonusGames(rng = Math.random) {
     return pickWeighted(rules.preBonusGames, rng)?.value || 4;
   }
@@ -82,6 +112,8 @@
       rateLabel: rate.label,
       aura: drawAura(rate.label, rng),
       set: 0,
+      gamesInSet: 0,
+      setGames: getBonusGamesPerSet(),
       totalPayout: 0,
       milestoneReached: false,
     };
@@ -92,6 +124,7 @@
     const rate = Number(rawBonus.rate);
     const id = rawBonus.id === "upper" ? "upper" : "normal";
     const fallbackType = rules.bonusTypes.find((type) => type.id === id) || rules.bonusTypes[0];
+    const setGames = Math.max(1, Number(rawBonus.setGames) || getBonusGamesPerSet());
     return {
       id,
       name: String(rawBonus.name || fallbackType.name),
@@ -102,6 +135,8 @@
       rateLabel: String(rawBonus.rateLabel || "66%"),
       aura: typeof rawBonus.aura === "string" ? rawBonus.aura : "白",
       set: Math.max(0, Number(rawBonus.set) || 0),
+      gamesInSet: Math.min(setGames, Math.max(0, Number(rawBonus.gamesInSet) || 0)),
+      setGames,
       totalPayout: Math.max(0, Number(rawBonus.totalPayout) || 0),
       milestoneReached: Boolean(rawBonus.milestoneReached),
     };
@@ -190,7 +225,9 @@
   }
 
   function drawBattleSet(bonus, rng = Math.random, forced = {}) {
-    const payout = Number.isFinite(Number(forced.payout)) ? Number(forced.payout) : drawBonusSetPayout(bonus, rng);
+    const payout = Number.isFinite(Number(forced.payout))
+      ? Number(forced.payout)
+      : Math.max(0, Number(rules.battle?.resolvePayout) || 0);
     const continued = typeof forced.continued === "boolean" ? forced.continued : rng() < Number(bonus.rate);
     const nextSet = Math.max(0, Number(bonus.set) || 0) + 1;
     const milestoneReached = continued
@@ -261,6 +298,7 @@
     createSequenceRng,
     createSeededRng,
     drawRole,
+    drawBonusGameRole,
     drawPreBonusGames,
     drawEntrySymbol,
     createBonusState,

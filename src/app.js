@@ -125,6 +125,7 @@ const state = {
   pendingRole: null,
   pendingPayout: 0,
   pendingMessage: "",
+  pendingSpinType: null,
   currentResult: null,
   effectPlan: null,
   lastPayout: 0,
@@ -463,6 +464,26 @@ function drawRole() {
   return slotEngine.drawRole(nextRandom);
 }
 
+function getBonusGamesPerSet() {
+  return Math.max(1, Number(slotRules.bonusGame?.gamesPerSet) || 30);
+}
+
+function normalizeBonusProgress(bonus) {
+  if (!bonus) return null;
+  const setGames = Math.max(1, Number(bonus.setGames) || getBonusGamesPerSet());
+  bonus.setGames = setGames;
+  bonus.gamesInSet = Math.min(setGames, Math.max(0, Number(bonus.gamesInSet) || 0));
+  return bonus;
+}
+
+function getCurrentBonusSetNumber() {
+  return state.bonus ? Math.max(1, Number(state.bonus.set || 0) + 1) : 1;
+}
+
+function drawBonusGameRole() {
+  return slotEngine.drawBonusGameRole(nextRandom);
+}
+
 function drawPreBonusGames() {
   return slotEngine.drawPreBonusGames(nextRandom);
 }
@@ -506,6 +527,38 @@ function createSpinEffectPlan(role, modeNote, effectId) {
     modeLabel: modeName,
     preBonusRemaining: state.preBonusRemaining,
   });
+}
+
+function createBonusGameEffectPlan(role) {
+  const setNumber = getCurrentBonusSetNumber();
+  const setGames = state.bonus?.setGames || getBonusGamesPerSet();
+  const gameNumber = Math.min(setGames, Math.max(1, Number(state.bonus?.gamesInSet || 0) + 1));
+  const tier = state.bonus?.effect === "premium" ? "premium" : "hot";
+  const plan = buildEffectPlan(getEffectResult(state.bonus?.effect || "rush", {
+    name: role.name,
+    lamp: `${setNumber}SET`,
+  }));
+  return {
+    ...plan,
+    tier,
+    tone: "bonusGame",
+    top: `${setNumber}SET`,
+    intro: {
+      label: "BB",
+      title: `${gameNumber}/${setGames}G`,
+      message: "ベルかリプレイで8枚。淡々と増やし、最後に勝負。",
+    },
+    stops: [
+      { top: `${setNumber}SET`, label: "第一停止", title: role.name, message: "小役ラインを確認。" },
+      { top: `${setNumber}SET`, label: "第二停止", title: role.name, message: "ベルかリプレイが形になる。" },
+      { top: `${setNumber}SET`, label: "第三停止", title: role.name, message: `${role.name}成立。8枚払い出し。` },
+    ],
+    final: {
+      label: "BB払出",
+      title: role.name,
+      message: `${gameNumber}/${setGames}G。8枚払い出し。`,
+    },
+  };
 }
 
 function buildEffectPlan(result) {
@@ -875,7 +928,11 @@ function renderStatus() {
   lineDisplay.title = betProfile.label;
   board.dataset.bet = String(state.bet);
   if (totalGameDisplay) totalGameDisplay.textContent = state.totalGames.toLocaleString("ja-JP");
-  if (bonusGameDisplay) bonusGameDisplay.textContent = state.gamesSinceBonus.toLocaleString("ja-JP");
+  if (bonusGameDisplay) {
+    bonusGameDisplay.textContent = state.phase === "battleBonus" && state.bonus
+      ? `${state.bonus.gamesInSet || 0}/${state.bonus.setGames || getBonusGamesPerSet()}G`
+      : state.gamesSinceBonus.toLocaleString("ja-JP");
+  }
   if (modeDisplay) {
     const modeName = state.phase === "battleBonus" ? "BB中" : (modeLabels[state.mode] || "通常");
     modeDisplay.textContent = modeName;
@@ -886,9 +943,13 @@ function renderStatus() {
   }
   if (bonusInfoDisplay) {
     if (state.bonus) {
+      const setNumber = getCurrentBonusSetNumber();
+      const progress = `${state.bonus.gamesInSet || 0}/${state.bonus.setGames || getBonusGamesPerSet()}G`;
       bonusInfoDisplay.textContent = state.bonusBattleAnimating
         ? `BATTLE ${state.bonus.rateLabel}`
-        : `${state.bonus.set}SET ${state.bonus.rateLabel}`;
+        : state.battleStage === "setReady"
+          ? `${setNumber}SET 勝負`
+          : `${setNumber}SET ${progress}`;
       bonusInfoDisplay.title = `${state.bonus.name} / 合計${state.bonus.totalPayout.toLocaleString("ja-JP")}枚`;
     } else if (state.pendingBonus) {
       bonusInfoDisplay.textContent = `確定 ${state.pendingBonus.rateLabel}`;
@@ -907,10 +968,14 @@ function renderStatus() {
     resultDisplay.textContent = "抽選中";
   } else if (state.lastPayout > 0) {
     resultDisplay.textContent = `+${state.lastPayout}`;
-  } else if (state.mode === "bonusReady") {
-    resultDisplay.textContent = "確定";
+  } else if (state.phase === "battleBonus" && state.battleStage === "setReady") {
+    resultDisplay.textContent = "勝負へ";
+  } else if (state.phase === "battleBonus" && state.battleOutcome === "continued") {
+    resultDisplay.textContent = "継続";
   } else if (state.phase === "battleBonus") {
     resultDisplay.textContent = "BB中";
+  } else if (state.mode === "bonusReady") {
+    resultDisplay.textContent = "確定";
   } else if (state.pendingRole) {
     resultDisplay.textContent = state.pendingRole.name;
   } else {
@@ -933,6 +998,7 @@ function renderDebugState() {
     `role: ${state.pendingRole?.id || "-"}`,
     `slip: ${state.lastSlip.join("/")}`,
     `battle: ${battleText}`,
+    `bbG: ${state.bonus ? `${state.bonus.gamesInSet || 0}/${state.bonus.setGames || getBonusGamesPerSet()}` : "-"}`,
     `rate: ${bonus?.rateLabel || "-"}`,
     `symbol: ${bonus?.entrySymbolName || "-"}`,
     `aura: ${bonus?.aura || "-"}`,
@@ -995,7 +1061,7 @@ function applySaveData(data, options = {}) {
   state.mode = isValidMode(data.mode) ? data.mode : "normal";
   state.phase = data.phase === "battleBonus" ? "battleBonus" : "normal";
   state.preBonusRemaining = Math.max(0, Number(data.preBonusRemaining) || 0);
-  state.bonus = state.phase === "battleBonus" ? sanitizeBonus(data.bonus) : null;
+  state.bonus = state.phase === "battleBonus" ? normalizeBonusProgress(sanitizeBonus(data.bonus)) : null;
   if (state.phase === "battleBonus" && !state.bonus) {
     state.phase = "normal";
   }
@@ -1009,6 +1075,7 @@ function applySaveData(data, options = {}) {
   state.pendingRole = null;
   state.pendingPayout = 0;
   state.pendingMessage = "";
+  state.pendingSpinType = null;
   state.lastPayout = 0;
   state.battleStage = "idle";
   state.battleOutcome = null;
@@ -1051,6 +1118,7 @@ function renderGameToText() {
     preBonusRemaining: state.preBonusRemaining,
     pendingRole: state.pendingRole ? state.pendingRole.id : null,
     pendingRoleName: state.pendingRole ? state.pendingRole.name : null,
+    pendingSpinType: state.pendingSpinType,
     currentResult: state.currentResult ? state.currentResult.id : null,
     effectTier: state.effectPlan ? state.effectPlan.tier : null,
     effectTone: state.effectPlan ? state.effectPlan.tone || null : null,
@@ -1078,6 +1146,13 @@ function renderGameToText() {
     } : null,
     pendingBonus: state.pendingBonus,
     bonus: state.bonus,
+    bonusGame: state.bonus ? {
+      setNumber: getCurrentBonusSetNumber(),
+      gamesInSet: state.bonus.gamesInSet || 0,
+      setGames: state.bonus.setGames || getBonusGamesPerSet(),
+      remaining: Math.max(0, (state.bonus.setGames || getBonusGamesPerSet()) - (state.bonus.gamesInSet || 0)),
+      readyForBattle: state.battleStage === "setReady",
+    } : null,
     ownedItems: state.ownedItems,
   });
 }
@@ -1476,8 +1551,10 @@ function renderControls() {
       : state.battleStage === "attack"
         ? "溜めへ"
         : "結果へ";
+  } else if (state.phase === "battleBonus" && state.battleStage === "setReady") {
+    spinButton.textContent = "勝負";
   } else {
-    spinButton.textContent = state.phase === "battleBonus" ? "勝負" : "回す";
+    spinButton.textContent = "回す";
   }
   if (bonusStartButton) {
     bonusStartButton.hidden = !readyForBonus;
@@ -1496,7 +1573,11 @@ function renderControls() {
 function startSpin() {
   if (state.phase === "battleBonus") {
     if (advanceDebugBattleStep()) return;
-    runBattleBonusSet();
+    if (state.battleStage === "setReady" || (state.bonus && (state.bonus.gamesInSet || 0) >= (state.bonus.setGames || getBonusGamesPerSet()))) {
+      runBattleBonusSet();
+      return;
+    }
+    startBonusGameSpin();
     return;
   }
   if (state.mode === "bonusReady") {
@@ -1552,6 +1633,63 @@ function startSpin() {
   renderControls();
 }
 
+function startBonusGameSpin() {
+  if (state.spinning || state.bonusBattleAnimating || state.phase !== "battleBonus" || !state.bonus) return;
+  normalizeBonusProgress(state.bonus);
+  if ((state.bonus.gamesInSet || 0) >= (state.bonus.setGames || getBonusGamesPerSet())) {
+    state.battleStage = "setReady";
+    runBattleBonusSet();
+    return;
+  }
+
+  slotAudio?.play("lever");
+  state.spinning = true;
+  state.stopped = [false, false, false];
+  state.bet = fixedBet;
+  state.totalGames += 1;
+  state.gamesSinceBonus += 1;
+  state.lastPayout = 0;
+  state.lastBonusSummary = null;
+  state.battleStage = "idle";
+  state.battleOutcome = null;
+  state.pendingSpinType = "bonusGame";
+  state.pendingRole = drawBonusGameRole();
+  state.pendingPayout = state.pendingRole.payout;
+  state.pendingMessage = `${state.pendingRole.name}成立。${state.pendingPayout}枚払い出し。`;
+  state.lastSlip = [0, 0, 0];
+  state.lastEngineEvent = {
+    role: state.pendingRole,
+    effectId: state.bonus.effect || "rush",
+    note: {
+      before: "battleBonus",
+      after: "battleBonus",
+      quiet: false,
+      heat: 1,
+      slip: [0, 0, 0],
+      message: state.pendingMessage,
+      expectation: "bonusGame",
+    },
+  };
+  state.currentResult = getEffectResult(state.bonus.effect || "rush", {
+    name: state.pendingRole.name,
+    lamp: `${getCurrentBonusSetNumber()}SET`,
+  });
+  state.effectPlan = createBonusGameEffectPlan(state.pendingRole);
+  currentStops = getStopsForRole(state.pendingRole);
+  setEffectClass(state.effectPlan.tier);
+  setEffectVisual(state.effectPlan);
+  setTopEffectText(state.effectPlan.top);
+  setEffectScreenContent(state.effectPlan.intro);
+  clearStreamComments();
+  burstStreamComments(state.effectPlan.tier, 3);
+  pushDebugTimeline("bb-game-start", `${getCurrentBonusSetNumber()}SET ${state.bonus.gamesInSet + 1}/${state.bonus.setGames}G ${state.pendingRole.name}`);
+  reels.forEach((reel) => {
+    reel.style.setProperty("--spin-start", reel.style.getPropertyValue("--stop-y") || "0px");
+    reel.classList.add("spinning");
+  });
+  renderControls();
+}
+
 function drawBonusType() {
   return slotEngine.pickWeighted(slotRules.bonusTypes, nextRandom);
 }
@@ -1574,7 +1712,7 @@ function startBattleBonus() {
   const bonus = state.pendingBonus || createBonusState();
   slotAudio?.play("bonusStart");
   state.phase = "battleBonus";
-  state.bonus = { ...bonus, set: 0, totalPayout: 0 };
+  state.bonus = normalizeBonusProgress({ ...bonus, set: 0, gamesInSet: 0, setGames: getBonusGamesPerSet(), totalPayout: 0 });
   state.pendingBonus = null;
   state.gamesSinceBonus = 0;
   state.battleStage = "idle";
@@ -1582,13 +1720,14 @@ function startBattleBonus() {
   state.lastBattle = null;
   state.pendingRole = null;
   state.pendingPayout = 0;
+  state.pendingSpinType = null;
   state.lastPayout = 0;
   state.currentResult = getEffectResult(state.bonus.effect, { name: state.bonus.name, lamp: state.bonus.rateLabel });
   state.effectPlan = buildEffectPlan(state.currentResult);
   state.effectPlan.intro = {
     label: "開始",
     title: `${state.bonus.entrySymbolName || state.bonus.name}`,
-    message: `継続率${state.bonus.rateLabel}。${state.bonus.aura || "白"}オーラでバトルへ。`,
+    message: `継続率${state.bonus.rateLabel}。${state.bonus.aura || "白"}オーラ。1SET ${state.bonus.setGames}Gを消化して勝負へ。`,
   };
   state.effectPlan.final = state.effectPlan.intro;
   setEffectClass(state.effectPlan.tier);
@@ -1604,11 +1743,15 @@ function startBattleBonus() {
 
 function runBattleBonusSet() {
   if (state.spinning || state.bonusBattleAnimating || state.phase !== "battleBonus" || !state.bonus) return;
+  normalizeBonusProgress(state.bonus);
+  const debugBattle = state.debugSandboxActive && state.debugNextBattle;
+  const setComplete = (state.bonus.gamesInSet || 0) >= (state.bonus.setGames || getBonusGamesPerSet());
+  if (!debugBattle && !setComplete && state.battleStage !== "setReady") return;
   slotAudio?.play("lever");
   state.bonusBattleAnimating = true;
   state.battleStage = "faceoff";
   state.battleOutcome = null;
-  state.totalGames += 1;
+  state.pendingSpinType = null;
   const forcedBattle = state.debugNextBattle;
   state.debugNextBattle = null;
   const battle = slotEngine.drawBattleSet(state.bonus, nextRandom, forcedBattle || {});
@@ -1687,9 +1830,10 @@ function resolveBattleBonusSet({ continued, payout, nextSet, milestoneReached, a
   state.bonus.set = nextSet;
   state.bonus.totalPayout += payout;
   if (milestoneReached) state.bonus.milestoneReached = true;
-  state.coins += payout;
+  if (payout > 0) state.coins += payout;
   state.lastPayout = payout;
-  state.pendingRole = { id: "battleBonus", name: `${state.bonus.set}SET` };
+  state.pendingSpinType = null;
+  state.pendingRole = { id: "battleBonus", name: continued ? `${state.bonus.set + 1}SET待機` : `${state.bonus.set}SET終了` };
   state.battleStage = continued ? "continue" : "lose";
   state.battleOutcome = continued ? "continued" : "ended";
 
@@ -1732,6 +1876,9 @@ function resolveBattleBonusSet({ continued, payout, nextSet, milestoneReached, a
     state.lastBonusSummary = `${endedBonus.set}SET ${endedBonus.totalPayout.toLocaleString("ja-JP")}枚`;
     state.bonus = null;
     state.pendingRole = null;
+  } else {
+    state.bonus.gamesInSet = 0;
+    state.bonus.setGames = getBonusGamesPerSet();
   }
 
   pushDebugTimeline(continued ? "battle-continue" : "battle-lose", scene.title);
@@ -1768,21 +1915,59 @@ function finishSpin() {
   const payout = state.pendingPayout || 0;
   state.lastPayout = payout;
   state.coins += payout;
+  if (state.pendingSpinType === "bonusGame") {
+    finishBonusGameSpin(plan, payout);
+    return;
+  }
   setEffectVisual(plan, true);
   setTopEffectText(plan.top || result.lamp);
   setEffectScreenContent(plan.final, payout);
   burstStreamComments(plan.tier, payout > 0 ? 6 : 4);
   pushDebugTimeline("spin-result", plan.final?.title || result.name);
+  state.pendingSpinType = null;
+  saveGameState();
+}
+
+function finishBonusGameSpin(plan, payout) {
+  if (!state.bonus) {
+    state.pendingSpinType = null;
+    saveGameState();
+    return;
+  }
+  normalizeBonusProgress(state.bonus);
+  state.bonus.gamesInSet = Math.min(state.bonus.setGames, (state.bonus.gamesInSet || 0) + 1);
+  state.bonus.totalPayout += payout;
+  const setNumber = getCurrentBonusSetNumber();
+  const reachedBattle = state.bonus.gamesInSet >= state.bonus.setGames;
+  if (reachedBattle) {
+    state.battleStage = "setReady";
+    state.pendingRole = { id: "battleReady", name: `${setNumber}SET 勝負` };
+  }
+  const finalScene = reachedBattle
+    ? {
+        label: "BB完走",
+        title: `${setNumber}SET 30G消化`,
+        message: "次レバーで継続勝負。ここからが怖い。",
+      }
+    : plan.final;
+  setEffectVisual(plan, true);
+  setTopEffectText(reachedBattle ? "勝負" : plan.top);
+  setEffectScreenContent(finalScene, payout);
+  burstStreamComments(plan.tier, reachedBattle ? 5 : 3);
+  pushDebugTimeline(reachedBattle ? "bb-set-ready" : "bb-game-result", finalScene.title);
+  state.pendingSpinType = null;
   saveGameState();
 }
 
 function renderInitialEffect() {
   if (state.phase === "battleBonus" && state.bonus) {
+    normalizeBonusProgress(state.bonus);
     const plan = buildEffectPlan(getEffectResult(state.bonus.effect));
+    const setNumber = getCurrentBonusSetNumber();
     const scene = {
       label: "再開",
       title: state.bonus.name,
-      message: `${state.bonus.set}SET進行中。継続率${state.bonus.rateLabel}。`,
+      message: `${setNumber}SET ${state.bonus.gamesInSet}/${state.bonus.setGames}G。継続率${state.bonus.rateLabel}。`,
     };
     setEffectClass(plan.tier);
     setEffectVisual(plan);

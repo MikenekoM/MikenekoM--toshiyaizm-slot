@@ -24,7 +24,7 @@
   };
 
   global.ToshiyaSlotRules = {
-    version: 4,
+    version: 5,
     bet: fixedBet,
     modeLabels: {
       low: "低確",
@@ -132,6 +132,13 @@
       { id: "normal", name: "バトルボーナス", weight: 82, effect: "rush", payoutMin: 120, payoutMax: 160 },
       { id: "upper", name: "上位バトルボーナス", weight: 18, effect: "premium", payoutMin: 150, payoutMax: 190, rateBoost: 1 },
     ],
+    bonusGame: {
+      gamesPerSet: 30,
+      roles: [
+        { roleId: "bell", name: "ベル", payout: 8, weight: 50 },
+        { roleId: "replay", name: "Tリプレイ", payout: 8, weight: 50 },
+      ],
+    },
     postBonusModes: {
       normal: { low: 0.45, normal: 0.4, high: 0.15 },
       normalLong: { low: 0.25, normal: 0.45, high: 0.25, preBonus: 0.05 },
@@ -140,6 +147,7 @@
     },
     battle: {
       milestoneSet: 20,
+      resolvePayout: 0,
       stages: ["faceoff", "attack", "hold", "resolve"],
       attackPatterns: [
         {

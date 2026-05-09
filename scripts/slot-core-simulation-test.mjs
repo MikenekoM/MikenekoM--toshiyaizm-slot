@@ -70,6 +70,16 @@ const bonusStats = {
   "89": simulateBonus(0.89, 89),
 };
 
+const bonusGameRng = engine.createSeededRng(30260509);
+const bonusGameCounts = { bell: 0, replay: 0 };
+for (let index = 0; index < 10000; index += 1) {
+  const role = engine.drawBonusGameRole(bonusGameRng);
+  bonusGameCounts[role.id] = (bonusGameCounts[role.id] || 0) + 1;
+  if (role.payout !== 8) {
+    bonusGameCounts.invalidPayout = (bonusGameCounts.invalidPayout || 0) + 1;
+  }
+}
+
 const failed = [];
 const roleTotal = Object.values(roleCounts).reduce((sum, value) => sum + value, 0);
 for (const role of rules.roles) {
@@ -94,11 +104,17 @@ if (bonusStats["89"].reached20Rate <= bonusStats["66"].reached20Rate) {
   failed.push("20SET reach rate does not increase for high continuation");
 }
 
+const bonusGameBellRate = bonusGameCounts.bell / (bonusGameCounts.bell + bonusGameCounts.replay);
+if (Math.abs(bonusGameBellRate - 0.5) > 0.03 || bonusGameCounts.invalidPayout) {
+  failed.push(`bonus game role balance invalid: ${JSON.stringify(bonusGameCounts)}`);
+}
+
 const result = {
   roleCounts,
   preBonusEntries,
   bonusReadyHits,
   bonusStats,
+  bonusGameCounts,
   failed,
 };
 
