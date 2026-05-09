@@ -15,11 +15,19 @@
     version: 1,
     saveKey: "toshiyaizm-slot-v2-state",
     bet: 3,
+    normalBellLineRate: 1 / 40,
     reel: {
       symbolCount: 16,
       cellHeight: 70,
       spinMsPerSymbol: 55,
       successWindowCells: 1,
+      activeLines: [
+        { id: "middle", label: "中段", rows: [1, 1, 1] },
+        { id: "top", label: "上段", rows: [0, 0, 0] },
+        { id: "bottom", label: "下段", rows: [2, 2, 2] },
+        { id: "diagonalDown", label: "右下がり", rows: [0, 1, 2] },
+        { id: "diagonalUp", label: "右上がり", rows: [2, 1, 0] },
+      ],
       stopPatterns: {
         blank: [[0, 5, 9], [4, 11, 2], [8, 1, 13]],
         bell: [[4, 2, 2], [12, 10, 10]],

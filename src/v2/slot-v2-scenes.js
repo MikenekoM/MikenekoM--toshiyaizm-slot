@@ -61,6 +61,23 @@
     ],
   };
 
+  const normalLoopSceneWeights = {
+    street: [
+      ["normal_street_room", 90],
+      ["normal_heat_comments", 10],
+    ],
+    heat: [
+      ["normal_heat_comments", 50],
+      ["normal_street_room", 40],
+      ["normal_deep_rumble", 10],
+    ],
+    deep: [
+      ["normal_deep_rumble", 50],
+      ["normal_street_room", 40],
+      ["normal_heat_comments", 10],
+    ],
+  };
+
   function scene(scene_id, scene_type, duration, asset_type, asset_path, title, message, overrides = {}) {
     return {
       scene_id,
@@ -118,6 +135,11 @@
     return getScene(weightedSceneId(entries, rng));
   }
 
+  function pickNormalLoopScene(context = {}, rng = Math.random) {
+    const stage = rules.stageOrder.includes(context.normalStage) ? context.normalStage : "street";
+    return getScene(weightedSceneId(normalLoopSceneWeights[stage] || normalLoopSceneWeights.street, rng));
+  }
+
   function pickBonusGameScene(gamesInSet) {
     const game = Math.max(1, Number(gamesInSet) || 1);
     if (game <= 10) return getScene("bonus_early");
@@ -136,8 +158,10 @@
   global.ToshiyaSlotV2Scenes = {
     catalog,
     normalSceneWeights,
+    normalLoopSceneWeights,
     getScene,
     pickNormalScene,
+    pickNormalLoopScene,
     pickBonusGameScene,
     pickBonusJudgeScenes,
   };

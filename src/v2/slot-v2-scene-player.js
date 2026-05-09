@@ -23,13 +23,24 @@
       element.alt = scene.title || scene.scene_id;
       if (scene.asset_type === "video") {
         element.muted = true;
-        element.loop = true;
+        element.loop = false;
         element.playsInline = true;
         element.autoplay = true;
         element.preload = "auto";
+        element.addEventListener("ended", () => {
+          if (currentScene?.scene_id === scene.scene_id) {
+            options.onVideoEnded?.(currentScene);
+          }
+        });
         element.play?.().catch(() => {});
       }
       mediaWrap.appendChild(element);
+    }
+
+    function updateCopy(context = {}, scene = currentScene) {
+      if (titleEl) titleEl.textContent = context.title || scene?.title || "";
+      if (messageEl) messageEl.textContent = context.message || scene?.message || "";
+      if (typeEl) typeEl.textContent = context.type || scene?.scene_type || "";
     }
 
     function applyTimelineStep(step) {
@@ -53,9 +64,7 @@
         root.classList.toggle("is-blackout", scene.transition_type === "blackout");
       }
       renderMedia(scene);
-      if (titleEl) titleEl.textContent = context.title || scene.title || scene.scene_id;
-      if (messageEl) messageEl.textContent = context.message || scene.message || "";
-      if (typeEl) typeEl.textContent = scene.scene_type;
+      updateCopy(context, scene);
       for (const step of scene.timeline) {
         const timer = setTimeout(() => applyTimelineStep(step), Math.max(0, Number(step.at) || 0) * 1000);
         timers.add(timer);
@@ -67,7 +76,7 @@
       return currentScene;
     }
 
-    return { playScene, getCurrentScene, clearTimers };
+    return { playScene, getCurrentScene, updateCopy, clearTimers };
   }
 
   const defaultPlayer = {

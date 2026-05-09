@@ -23,7 +23,10 @@
     reels: [...document.querySelectorAll("[data-v2-reel]")],
   };
 
-  const scenePlayer = scenePlayerFactory.create({ root: document.querySelector("#v2Scene") });
+  const scenePlayer = scenePlayerFactory.create({
+    root: document.querySelector("#v2Scene"),
+    onVideoEnded: handleSceneVideoEnded,
+  });
   let rng = Math.random;
   let state = loadState();
   let currentSpin = null;
@@ -167,8 +170,54 @@
     });
   }
 
-  function shouldAutoAlignRole(kind, role) {
-    return kind === "normal" && (role?.id === "bell" || role?.id === "replay");
+  function normalBellLineChance(role) {
+    const targetRate = Number(rules.normalBellLineRate || 0);
+    const roleRate = Number(role?.probability || 0);
+    if (targetRate <= 0 || roleRate <= 0) return 0;
+    return Math.max(0, Math.min(1, targetRate / roleRate));
+  }
+
+  function buildAutoStopPattern(kind, role) {
+    if (kind !== "normal") return null;
+    if (role?.id === "replay") {
+      return {
+        pattern: reelsApi.pickLineStopPattern(role, rng),
+        aligned: true,
+      };
+    }
+    if (role?.id === "bell") {
+      const aligned = rng() < normalBellLineChance(role);
+      return {
+        pattern: aligned ? reelsApi.pickLineStopPattern(role, rng) : reelsApi.buildFailedStops(role, rng),
+        aligned,
+      };
+    }
+    return null;
+  }
+
+  function canPlayNormalLoopScene() {
+    return state.phase === "normal" && state.internalState !== "bonusReady" && !judgeRunning;
+  }
+
+  function playNormalLoopScene() {
+    if (!canPlayNormalLoopScene()) return null;
+    const scene = scenes.pickNormalLoopScene({
+      internalState: state.internalState,
+      normalStage: state.normalStage,
+      preludeRemaining: state.preludeRemaining,
+    }, rng);
+    state.lastSceneId = scene.scene_id;
+    scenePlayer.playScene(scene.scene_id, { message: state.lastMessage || scene.message });
+    render();
+    return scene;
+  }
+
+  function handleSceneVideoEnded() {
+    playNormalLoopScene();
+  }
+
+  function updateSceneMessage() {
+    scenePlayer.updateCopy?.({ message: state.lastMessage || "" });
   }
 
   function spinAction() {
@@ -211,7 +260,7 @@
       startedAt,
       stops: [null, null, null],
       forcedStops: nextForcedStops,
-      autoStopPattern: shouldAutoAlignRole(kind, role) ? reelsApi.pickStopPattern(role, rng) : null,
+      autoStop: buildAutoStopPattern(kind, role),
     };
     nextForcedStops = null;
     reelStates.forEach((reelState) => {
@@ -225,17 +274,14 @@
     });
     renderReels();
     startReelLoop();
-    const scene = kind === "bonusGame"
-      ? scenes.pickBonusGameScene((state.bonus?.gamesInSet || 0) + 1)
-      : scenes.pickNormalScene({
-        internalState: state.internalState,
-        normalStage: state.normalStage,
-        role,
-        preludeRemaining: state.preludeRemaining,
-      }, rng);
-    state.lastSceneId = scene.scene_id;
     state.lastMessage = `${role.name}を狙う。成功時だけ払い出し。`;
-    scenePlayer.playScene(scene.scene_id, { message: state.lastMessage });
+    if (kind === "bonusGame") {
+      const scene = scenes.pickBonusGameScene((state.bonus?.gamesInSet || 0) + 1);
+      state.lastSceneId = scene.scene_id;
+      scenePlayer.playScene(scene.scene_id, { message: state.lastMessage });
+    } else {
+      updateSceneMessage();
+    }
     render();
   }
 
@@ -256,7 +302,7 @@
     renderReels();
     const reelState = reelStates[index];
     const forced = currentSpin.forcedStops?.[index];
-    const autoStop = currentSpin.autoStopPattern?.[index];
+    const autoStop = currentSpin.autoStop?.pattern?.[index];
     let stopIndex = currentReelIndex(index);
     if (Number.isFinite(Number(autoStop))) stopIndex = Number(autoStop);
     if (Number.isFinite(Number(forced))) stopIndex = Number(forced);
@@ -297,14 +343,13 @@
     } else {
       const event = engine.resolveNormalSpin(state, stopResult, rng, spin.role);
       state = event.nextState;
-      const scene = scenes.pickNormalScene({
-        internalState: state.internalState,
-        normalStage: state.normalStage,
-        role: event.role,
-        preludeRemaining: state.preludeRemaining,
-      }, rng);
-      state.lastSceneId = scene.scene_id;
-      scenePlayer.playScene(scene.scene_id, { message: state.lastMessage });
+      if (state.internalState === "bonusReady") {
+        const scene = scenes.getScene("bonus_ready");
+        state.lastSceneId = scene.scene_id;
+        scenePlayer.playScene(scene.scene_id, { message: state.lastMessage });
+      } else {
+        updateSceneMessage();
+      }
     }
 
     saveState();
@@ -343,12 +388,13 @@
       judgeRunning = false;
       const finalScene = event.plan?.continued
         ? scenes.getScene("bonus_continue")
-        : scenes.pickNormalScene({
-          internalState: state.internalState,
-          normalStage: state.normalStage,
-        }, rng);
-      state.lastSceneId = finalScene.scene_id;
-      scenePlayer.playScene(finalScene.scene_id, { message: state.lastMessage });
+        : null;
+      if (finalScene) {
+        state.lastSceneId = finalScene.scene_id;
+        scenePlayer.playScene(finalScene.scene_id, { message: state.lastMessage });
+      } else {
+        playNormalLoopScene();
+      }
       saveState();
       render();
     });
@@ -443,7 +489,8 @@
       spinning: Boolean(currentSpin),
       stopped: currentSpin ? currentSpin.stops.map((value) => value !== null) : [true, true, true],
       currentRole: currentSpin?.role?.id || null,
-      autoStopPattern: currentSpin?.autoStopPattern || null,
+      autoStopPattern: currentSpin?.autoStop?.pattern || null,
+      autoStopAligned: currentSpin?.autoStop?.aligned ?? null,
       lastRole: state.lastRole,
       lastPayout: state.lastPayout,
       lastSceneId: state.lastSceneId,
@@ -515,14 +562,20 @@
       renderReels();
       return JSON.stringify(getReelDebug());
     },
+    playNormalLoopScene() {
+      return playNormalLoopScene()?.scene_id || null;
+    },
   };
 
-  const initialScene = scenes.pickNormalScene({
-    internalState: state.internalState,
-    normalStage: state.normalStage,
-    preludeRemaining: state.preludeRemaining,
-  }, rng);
-  state.lastSceneId ||= initialScene.scene_id;
-  scenePlayer.playScene(state.lastSceneId);
+  if (state.phase === "bonus") {
+    const initialScene = scenes.pickBonusGameScene((state.bonus?.gamesInSet || 0) + 1);
+    state.lastSceneId = initialScene.scene_id;
+    scenePlayer.playScene(initialScene.scene_id);
+  } else if (state.internalState === "bonusReady") {
+    state.lastSceneId = "bonus_ready";
+    scenePlayer.playScene("bonus_ready");
+  } else {
+    playNormalLoopScene();
+  }
   render();
 })(globalThis);

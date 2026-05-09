@@ -52,6 +52,19 @@ if (streetVideo.asset_type !== "video" || !streetVideo.asset_path.endsWith("norm
 if (heatVideo.asset_type !== "video" || !heatVideo.asset_path.endsWith("normal-stage-mid.mp4")) failed.push("heat stage is not using the mid video asset");
 if (deepVideo.asset_type !== "video" || !deepVideo.asset_path.endsWith("normal-stage-high.mp4")) failed.push("deep stage is not using the high video asset");
 
+const heatLoopHot = scenes.pickNormalLoopScene({ normalStage: "heat" }, engine.createSequenceRng([0.2]));
+const heatLoopNormal = scenes.pickNormalLoopScene({ normalStage: "heat" }, engine.createSequenceRng([0.6]));
+const heatLoopMismatch = scenes.pickNormalLoopScene({ normalStage: "heat" }, engine.createSequenceRng([0.95]));
+const deepLoopHot = scenes.pickNormalLoopScene({ normalStage: "deep" }, engine.createSequenceRng([0.2]));
+const deepLoopNormal = scenes.pickNormalLoopScene({ normalStage: "deep" }, engine.createSequenceRng([0.6]));
+const deepLoopMismatch = scenes.pickNormalLoopScene({ normalStage: "deep" }, engine.createSequenceRng([0.95]));
+if (heatLoopHot.scene_id !== "normal_heat_comments") failed.push(`heat loop 50% branch invalid: ${heatLoopHot.scene_id}`);
+if (heatLoopNormal.scene_id !== "normal_street_room") failed.push(`heat loop 40% branch invalid: ${heatLoopNormal.scene_id}`);
+if (heatLoopMismatch.scene_id !== "normal_deep_rumble") failed.push(`heat loop 10% branch invalid: ${heatLoopMismatch.scene_id}`);
+if (deepLoopHot.scene_id !== "normal_deep_rumble") failed.push(`deep loop 50% branch invalid: ${deepLoopHot.scene_id}`);
+if (deepLoopNormal.scene_id !== "normal_street_room") failed.push(`deep loop 40% branch invalid: ${deepLoopNormal.scene_id}`);
+if (deepLoopMismatch.scene_id !== "normal_heat_comments") failed.push(`deep loop 10% branch invalid: ${deepLoopMismatch.scene_id}`);
+
 const weakCherryScene = scenes.pickNormalScene({ internalState: "normal", normalStage: "street", role: { id: "weakCherry" } });
 const strongCherryScene = scenes.pickNormalScene({ internalState: "normal", normalStage: "street", role: { id: "strongCherry" } });
 if (weakCherryScene.scene_id !== "normal_role_weak_cherry") failed.push("weak cherry did not select the weak cherry video scene");

@@ -38,12 +38,12 @@ function sameStops(actual, expected) {
   return actual.length === expected.length && actual.every((value, index) => Number(value) === Number(expected[index]));
 }
 
-async function forceRoleSpin(roleId) {
-  await page.evaluate((id) => {
+async function forceRoleSpin(roleId, randoms = [0]) {
+  await page.evaluate(({ id, values }) => {
     window.__toshiyaSlotV2Test.setState({ coins: 1000, internalState: "normal", normalStage: "street" });
-    window.__toshiyaSlotV2Test.setSeed(100);
+    window.__toshiyaSlotV2Test.setRandomSequence(values);
     window.__toshiyaSlotV2Test.forceRole(id);
-  }, roleId);
+  }, { id: roleId, values: randoms });
   await page.keyboard.press("Space");
   await page.waitForTimeout(80);
   const during = await state();
@@ -75,16 +75,34 @@ if (!lineInfo.some((line) => line.className.includes("diagonal-a")) || !lineInfo
 }
 
 const globalPatterns = await page.evaluate(() => ({
-  bell: window.ToshiyaSlotV2Reels.getStopPatterns("bell"),
-  replay: window.ToshiyaSlotV2Reels.getStopPatterns("replay"),
+  bell: window.ToshiyaSlotV2Reels.getLineStopPatterns("bell"),
+  replay: window.ToshiyaSlotV2Reels.getLineStopPatterns("replay"),
 }));
 
-let result = await forceRoleSpin("bell");
+const bellLineConfig = await page.evaluate(() => {
+  const bell = window.ToshiyaSlotV2Rules.roles.find((role) => role.id === "bell");
+  return {
+    targetRate: window.ToshiyaSlotV2Rules.normalBellLineRate,
+    conditionalChance: window.ToshiyaSlotV2Rules.normalBellLineRate / bell.probability,
+  };
+});
+if (Math.abs(bellLineConfig.targetRate - 1 / 40) > 0.000001) {
+  failed.push(`normal bell line target is not 1/40: ${JSON.stringify(bellLineConfig)}`);
+}
+
+let result = await forceRoleSpin("bell", [0, 0]);
 assertRoleAutoAligned("bell", result.during, result.after);
+if (!result.during.autoStopAligned) failed.push("normal bell winning branch did not mark autoStopAligned");
 if (result.after.lastPayout !== 8) failed.push(`normal bell did not auto-pay 8: ${result.after.lastPayout}`);
+
+result = await forceRoleSpin("bell", [0.99, 0, 0, 0, 0, 0, 0]);
+if (!result.during.autoStopPattern) failed.push("normal bell miss branch did not keep reel control");
+if (result.during.autoStopAligned) failed.push("normal bell miss branch incorrectly marked autoStopAligned");
+if (result.after.lastPayout !== 0) failed.push(`normal bell should only visibly line up at 1/40 branch, paid: ${result.after.lastPayout}`);
 
 result = await forceRoleSpin("replay");
 assertRoleAutoAligned("replay", result.during, result.after);
+if (!result.during.autoStopAligned) failed.push("normal replay did not mark autoStopAligned");
 if (!result.after.replayCredit) failed.push("normal replay did not auto-grant replay credit");
 
 await page.evaluate(() => {

@@ -30,6 +30,19 @@ async function resetPage() {
   await page.waitForFunction(() => Boolean(window.__toshiyaSlotV2Test?.setState));
 }
 
+async function resetWithStage(stage) {
+  await resetPage();
+  await page.evaluate((normalStage) => {
+    window.__toshiyaSlotV2Test.setState({
+      coins: 1000,
+      internalState: "normal",
+      normalStage,
+    });
+    window.__toshiyaSlotV2Test.playNormalLoopScene();
+  }, stage);
+  await page.waitForTimeout(250);
+}
+
 async function currentMedia() {
   return page.evaluate(() => {
     const media = document.querySelector("[data-scene-media] > *");
@@ -43,46 +56,74 @@ async function currentMedia() {
   });
 }
 
-async function startForcedRole(roleId, state = {}) {
-  await page.evaluate(({ roleId, state }) => {
-    window.__toshiyaSlotV2Test.setState({
-      coins: 1000,
-      internalState: "normal",
-      normalStage: "street",
-      ...state,
-    });
-    window.__toshiyaSlotV2Test.forceRole(roleId);
-  }, { roleId, state });
-  await page.keyboard.press("Space");
-  await page.waitForTimeout(300);
+async function endCurrentVideoWithRoll(roll) {
+  await page.evaluate((value) => {
+    window.__toshiyaSlotV2Test.setRandomSequence([value]);
+    const video = document.querySelector("[data-scene-media] video");
+    video?.dispatchEvent(new Event("ended"));
+  }, roll);
+  await page.waitForTimeout(250);
 }
 
-await resetPage();
-await startForcedRole("weakCherry");
+async function startForcedRole(roleId) {
+  await page.evaluate((id) => {
+    window.__toshiyaSlotV2Test.forceRole(id);
+  }, roleId);
+  await page.keyboard.press("Space");
+  await page.waitForTimeout(120);
+}
+
+await resetWithStage("heat");
+await endCurrentVideoWithRoll(0.2);
 let state = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
 let media = await currentMedia();
-if (state.lastSceneId !== "normal_role_weak_cherry") failed.push(`weak cherry scene was ${state.lastSceneId}`);
-if (media.tag !== "VIDEO" || !media.src.endsWith("assets/videos/v2/role-weak-cherry.mp4")) failed.push(`weak cherry did not render the expected video: ${JSON.stringify(media)}`);
-if (media.readyState < 2 || media.videoWidth <= 0) failed.push(`weak cherry video did not load metadata/frame: ${JSON.stringify(media)}`);
+if (state.lastSceneId !== "normal_heat_comments") failed.push(`heat loop appropriate roll scene was ${state.lastSceneId}`);
+if (media.tag !== "VIDEO" || !media.src.endsWith("assets/videos/v2/normal-stage-mid.mp4")) failed.push(`heat loop did not render the mid video: ${JSON.stringify(media)}`);
+if (media.readyState < 2 || media.videoWidth <= 0) failed.push(`heat loop video did not load metadata/frame: ${JSON.stringify(media)}`);
 
-await resetPage();
+await endCurrentVideoWithRoll(0.6);
+state = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
+media = await currentMedia();
+if (state.lastSceneId !== "normal_street_room") failed.push(`heat loop normal roll scene was ${state.lastSceneId}`);
+if (media.tag !== "VIDEO" || !media.src.endsWith("assets/videos/v2/normal-stage-low.mp4")) failed.push(`heat loop normal roll did not render the low video: ${JSON.stringify(media)}`);
+
+await endCurrentVideoWithRoll(0.95);
+state = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
+media = await currentMedia();
+if (state.lastSceneId !== "normal_deep_rumble") failed.push(`heat loop mismatched roll scene was ${state.lastSceneId}`);
+if (media.tag !== "VIDEO" || !media.src.endsWith("assets/videos/v2/normal-stage-high.mp4")) failed.push(`heat loop mismatched roll did not render the high video: ${JSON.stringify(media)}`);
+
+await resetWithStage("deep");
+await endCurrentVideoWithRoll(0.2);
+const beforeSpinMedia = await currentMedia();
 await startForcedRole("strongCherry");
 state = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
 media = await currentMedia();
-if (state.lastSceneId !== "normal_role_strong_cherry") failed.push(`strong cherry scene was ${state.lastSceneId}`);
-if (media.tag !== "VIDEO" || !media.src.endsWith("assets/videos/v2/role-strong-cherry.mp4")) failed.push(`strong cherry did not render the expected video: ${JSON.stringify(media)}`);
-if (media.readyState < 2 || media.videoWidth <= 0) failed.push(`strong cherry video did not load metadata/frame: ${JSON.stringify(media)}`);
+if (state.currentRole !== "strongCherry") failed.push(`strong cherry spin did not start: ${state.currentRole}`);
+if (media.src !== beforeSpinMedia.src) failed.push(`normal spin changed video immediately: ${beforeSpinMedia.src} -> ${media.src}`);
 
-await resetPage();
+await resetWithStage("street");
 await page.evaluate(() => {
-  window.__toshiyaSlotV2Test.setRandomSequence([0.3]);
+  const pending = {
+    entrySymbol: "normal7",
+    entryName: "通常7揃い",
+    rateLabel: "79%",
+    rate: 0.79,
+    stockSets: 1,
+    premium: false,
+  };
+  window.__toshiyaSlotV2Test.setState({
+    coins: 1000,
+    internalState: "bonusReady",
+    pendingBonus: pending,
+  });
 });
-await startForcedRole("blank", { normalStage: "deep" });
+await page.keyboard.press("Space");
+await page.waitForTimeout(150);
 state = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
 media = await currentMedia();
-if (state.lastSceneId !== "normal_deep_rumble") failed.push(`deep stage scene was ${state.lastSceneId}`);
-if (media.tag !== "VIDEO" || !media.src.endsWith("assets/videos/v2/normal-stage-high.mp4")) failed.push(`deep stage did not render the high video: ${JSON.stringify(media)}`);
-if (media.readyState < 2 || media.videoWidth <= 0) failed.push(`deep stage video did not load metadata/frame: ${JSON.stringify(media)}`);
+if (state.phase !== "bonus" || state.lastSceneId !== "bonus_open_normal7") failed.push(`bonus did not switch immediately: ${JSON.stringify(state)}`);
+if (media.tag !== "IMG" || !media.src.endsWith("assets/effects/runtime/bonus_ism_awakening.webp")) failed.push(`bonus opening did not replace video immediately: ${JSON.stringify(media)}`);
 
 await page.screenshot({ path: path.join(root, "tmp", "slot-v2-video-scene-test.png"), fullPage: false });
 await browser.close();

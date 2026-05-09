@@ -51,5 +51,18 @@ const replayMiss = engine.resolveNormalSpin(
 if (!replaySuccess.nextState.replayCredit) failed.push("successful replay did not grant replay credit");
 if (replayMiss.nextState.replayCredit) failed.push("missed replay granted replay credit");
 
-console.log(JSON.stringify({ failed, successEvent, missEvent, replaySuccess, replayMiss }, null, 2));
+const bell = rules.roles.find((role) => role.id === "bell");
+const lineResults = rules.reel.activeLines.map((line) => ({
+  id: line.id,
+  result: reels.evaluateStops(bell, reels.getLineStopPatterns(bell, line.id)[0]),
+}));
+for (const item of lineResults) {
+  if (!item.result.success || item.result.matchedLine?.id !== item.id) {
+    failed.push(`bell did not evaluate active line ${item.id}: ${JSON.stringify(item.result)}`);
+  }
+}
+const bellMiss = reels.evaluateStops(bell, reels.buildFailedStops(bell, engine.createSeededRng(41)));
+if (bellMiss.success) failed.push(`buildFailedStops produced a bell payline: ${JSON.stringify(bellMiss)}`);
+
+console.log(JSON.stringify({ failed, successEvent, missEvent, replaySuccess, replayMiss, lineResults, bellMiss }, null, 2));
 if (failed.length) process.exitCode = 1;
