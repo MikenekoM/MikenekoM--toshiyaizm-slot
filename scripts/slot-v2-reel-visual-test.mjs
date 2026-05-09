@@ -70,6 +70,50 @@ copyInfo.forEach((offsets, index) => {
   }
 });
 
+const nextStopPreview = await page.evaluate(() => {
+  const test = window.__toshiyaSlotV2Test;
+  return {
+    exactBoundary: test.previewStopIndexFromOffset(-560),
+    justAfterBoundary: test.previewStopIndexFromOffset(-559.9),
+    partialAfterBoundary: test.previewStopIndexFromOffset(-530),
+    positiveJustAfter: test.previewStopIndexFromOffset(1),
+    positiveNearNext: test.previewStopIndexFromOffset(69.9),
+    positiveExactNext: test.previewStopIndexFromOffset(70),
+    positiveAfterNext: test.previewStopIndexFromOffset(70.1),
+  };
+});
+const expectedNextStopPreview = {
+  exactBoundary: 8,
+  justAfterBoundary: 7,
+  partialAfterBoundary: 7,
+  positiveJustAfter: 15,
+  positiveNearNext: 15,
+  positiveExactNext: 15,
+  positiveAfterNext: 14,
+};
+if (JSON.stringify(nextStopPreview) !== JSON.stringify(expectedNextStopPreview)) {
+  failed.push(`next-cell stop preview is wrong: ${JSON.stringify(nextStopPreview)}`);
+}
+
+await page.evaluate(() => window.advanceTime(0));
+await page.evaluate(() => {
+  window.__toshiyaSlotV2Test.setMeoshiTuning({ meoshiSlipCells: 0 });
+  window.__toshiyaSlotV2Test.forceRole("watermelon");
+});
+await page.keyboard.press("Space");
+await page.evaluate(() => window.advanceTime(20));
+const leftBeforeNextCellStop = (await reels())[0];
+if (leftBeforeNextCellStop.nextStopIndex !== 15) {
+  failed.push(`left reel should be aiming at next cell 15 before stop: ${JSON.stringify(leftBeforeNextCellStop)}`);
+}
+await page.keyboard.press("KeyZ");
+await page.evaluate(() => window.advanceTime(0));
+const leftAfterNextCellStop = (await reels())[0];
+if (leftAfterNextCellStop.stoppedIndex !== 15) {
+  failed.push(`left reel stopped on nearest/current cell instead of next cell: ${JSON.stringify(leftAfterNextCellStop)}`);
+}
+
+await resetPage();
 await page.keyboard.press("Space");
 await page.waitForTimeout(180);
 await page.keyboard.press("KeyX");

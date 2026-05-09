@@ -156,8 +156,10 @@
     return reelsApi.normalizeIndex(index) * -reelCellHeight;
   }
 
-  function offsetToIndex(offset) {
-    return reelsApi.normalizeIndex(Math.round(normalizeOffset(offset) / -reelCellHeight));
+  function offsetToNextStopIndex(rawOffset) {
+    const rawCells = (Number(rawOffset) || 0) / reelCellHeight;
+    const boundaryCells = Math.ceil(rawCells - 0.000001);
+    return reelsApi.normalizeIndex(-boundaryCells);
   }
 
   function applyReelOffset(reelState, offset) {
@@ -169,9 +171,13 @@
   }
 
   function computeSpinOffset(reelState, at = now()) {
+    return normalizeOffset(computeSpinRawOffset(reelState, at));
+  }
+
+  function computeSpinRawOffset(reelState, at = now()) {
     const phaseOffsetMs = reelState.index * 37;
     const elapsed = Math.max(0, at - reelState.spinStartedAt + phaseOffsetMs);
-    return normalizeOffset(reelState.spinStartOffset + elapsed * reelSpeedPxPerMs);
+    return reelState.spinStartOffset + elapsed * reelSpeedPxPerMs;
   }
 
   function renderReels() {
@@ -458,8 +464,8 @@
   function currentReelIndex(index) {
     const reelState = reelStates[index];
     if (!reelState) return 0;
-    const offset = reelState.spinning ? computeSpinOffset(reelState) : reelState.offset;
-    return offsetToIndex(offset);
+    const offset = reelState.spinning ? computeSpinRawOffset(reelState) : reelState.offset;
+    return offsetToNextStopIndex(offset);
   }
 
   function stopNextReel() {
@@ -848,14 +854,14 @@
   function getReelDebug() {
     const at = now();
     return reelStates.map((reelState) => {
-      const elapsed = Math.max(0, at - reelState.spinStartedAt + reelState.index * 37);
       const rawOffset = reelState.spinning
-        ? reelState.spinStartOffset + elapsed * reelSpeedPxPerMs
+        ? computeSpinRawOffset(reelState, at)
         : reelState.offset;
       return {
         index: reelState.index,
         offset: Number(reelState.offset.toFixed(3)),
         rawOffset: Number(rawOffset.toFixed(3)),
+        nextStopIndex: offsetToNextStopIndex(rawOffset),
         stoppedIndex: reelState.stoppedIndex,
         locked: reelState.locked,
         spinning: reelState.spinning,
@@ -997,6 +1003,9 @@
     getReels() {
       renderReels();
       return JSON.stringify(getReelDebug());
+    },
+    previewStopIndexFromOffset(rawOffset) {
+      return offsetToNextStopIndex(rawOffset);
     },
     playNormalLoopScene() {
       return playNormalLoopScene()?.scene_id || null;
