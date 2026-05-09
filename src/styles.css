@@ -1002,8 +1002,15 @@ button {
 }
 
 .live-reel.spinning img {
+  position: absolute;
+  left: 0;
+  top: 0;
   animation: reelStripSpin 420ms linear infinite;
   filter: blur(1.4px) saturate(1.16);
+}
+
+.live-reel.spinning img + img {
+  top: -560px;
 }
 
 .live-reel.slip-stop img {
