@@ -767,8 +767,8 @@
   }
 
   function getDesiredBgmKind() {
-    if (currentSpin?.kind === "bonusEntry") return "sevenMode";
-    if (state.phase === "normal" && state.internalState === "bonusReady") return "bonusConfirm";
+    if (state.phase === "bonus") return "bonusConfirm";
+    if (state.phase === "normal" && state.internalState === "bonusReady") return "sevenMode";
     return null;
   }
 

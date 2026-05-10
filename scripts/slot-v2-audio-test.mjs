@@ -115,15 +115,35 @@ if (persistedAudio.audioDebug?.bgm?.tracks?.bonusConfirm?.title !== "ギャン�
 
 await page.evaluate(() => window.__toshiyaSlotV2Test.applyDebug({ internalState: "bonusReady", coins: 1000 }));
 await page.waitForTimeout(50);
-const bonusConfirmAudio = await state();
-if (bonusConfirmAudio.audioDebug?.bgm?.current !== "bonusConfirm") {
-  failed.push(`bonusReady should loop bonusConfirm BGM, got ${bonusConfirmAudio.audioDebug?.bgm?.current}`);
+const bonusReadyAudio = await state();
+if (bonusReadyAudio.audioDebug?.bgm?.current !== "sevenMode") {
+  failed.push(`bonusReady should loop sevenMode BGM, got ${bonusReadyAudio.audioDebug?.bgm?.current}`);
 }
+const sevenModeStartsBeforeSpin = bonusReadyAudio.audioDebug?.bgm?.tracks?.sevenMode?.startCount;
 await page.keyboard.press("Space");
 await page.waitForTimeout(80);
 const sevenModeAudio = await state();
 if (sevenModeAudio.audioDebug?.bgm?.current !== "sevenMode") {
   failed.push(`bonus entry spin should loop sevenMode BGM, got ${sevenModeAudio.audioDebug?.bgm?.current}`);
+}
+if (sevenModeAudio.audioDebug?.bgm?.tracks?.sevenMode?.startCount !== sevenModeStartsBeforeSpin) {
+  failed.push(`bonus entry spin should not restart sevenMode BGM: before ${sevenModeStartsBeforeSpin}, after ${sevenModeAudio.audioDebug?.bgm?.tracks?.sevenMode?.startCount}`);
+}
+await page.evaluate(() => window.__toshiyaSlotV2Test.applyDebug({ internalState: "bonus", coins: 1000 }));
+await page.waitForTimeout(50);
+const bonusAudio = await state();
+if (bonusAudio.audioDebug?.bgm?.current !== "bonusConfirm") {
+  failed.push(`bonus phase should loop bonusConfirm BGM, got ${bonusAudio.audioDebug?.bgm?.current}`);
+}
+const bonusStartsBeforeSpin = bonusAudio.audioDebug?.bgm?.tracks?.bonusConfirm?.startCount;
+await page.keyboard.press("Space");
+await page.waitForTimeout(80);
+const bonusSpinAudio = await state();
+if (bonusSpinAudio.audioDebug?.bgm?.current !== "bonusConfirm") {
+  failed.push(`bonus game spin should keep bonusConfirm BGM, got ${bonusSpinAudio.audioDebug?.bgm?.current}`);
+}
+if (bonusSpinAudio.audioDebug?.bgm?.tracks?.bonusConfirm?.startCount !== bonusStartsBeforeSpin) {
+  failed.push(`bonus game spin should not restart bonusConfirm BGM: before ${bonusStartsBeforeSpin}, after ${bonusSpinAudio.audioDebug?.bgm?.tracks?.bonusConfirm?.startCount}`);
 }
 await page.evaluate(() => window.__toshiyaSlotV2Test.applyDebug({ internalState: "normal", coins: 1000 }));
 await page.waitForTimeout(260);

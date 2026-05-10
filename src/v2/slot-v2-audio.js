@@ -116,6 +116,7 @@
     const reelNodes = [null, null, null];
     const activeOneShots = new Set();
     const bgmFadeTimers = new Map();
+    const bgmStartCounts = Object.fromEntries(Object.keys(bgmElements).map((kind) => [kind, 0]));
     let currentBgmKind = null;
 
     function effectiveVolume(kind, baseGain) {
@@ -373,6 +374,7 @@
       stopElement(element);
       element.loop = true;
       setBgmVolume(kind, effectiveBgmVolume(kind));
+      bgmStartCounts[kind] = (bgmStartCounts[kind] || 0) + 1;
       unlock();
       if (!muted) element.play?.().catch(() => {});
     }
@@ -425,6 +427,9 @@
               title: bgmTitles[kind],
               volumeKey: bgmVolumeKeys[kind],
               effectiveVolume: effectiveBgmVolume(kind),
+              startCount: bgmStartCounts[kind] || 0,
+              currentTime: bgmElements[kind]?.currentTime || 0,
+              paused: Boolean(bgmElements[kind]?.paused),
             },
           ])),
         },
