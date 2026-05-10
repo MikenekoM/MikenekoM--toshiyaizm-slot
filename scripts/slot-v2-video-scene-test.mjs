@@ -16,10 +16,15 @@ const errors = [];
 const failedRequests = [];
 const failed = [];
 
+function isExpectedBgmAbort(request) {
+  return request.url().includes("/assets/voices/v2/bgm/") && (request.failure()?.errorText || "").includes("ERR_ABORTED");
+}
+
 page.on("console", (msg) => {
   if (msg.type() === "error") errors.push(msg.text());
 });
 page.on("requestfailed", (request) => {
+  if (isExpectedBgmAbort(request)) return;
   failedRequests.push(`${request.url()} ${request.failure()?.errorText || ""}`.trim());
 });
 

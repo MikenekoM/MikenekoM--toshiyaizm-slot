@@ -107,6 +107,46 @@
               <button type="button" id="v2DebugApply">反映</button>
               <button type="button" id="v2DebugReset">初期化</button>
             </div>
+            <div class="v2-audio-debug" aria-label="音量調整">
+              <strong>音量調整</strong>
+              <label>
+                <span>全体 <output data-v2-audio-volume-value="master">100%</output></span>
+                <input type="range" min="0" max="200" step="5" value="100" data-v2-audio-volume="master">
+              </label>
+              <label>
+                <span>リール <output data-v2-audio-volume-value="reel">100%</output></span>
+                <input type="range" min="0" max="200" step="5" value="100" data-v2-audio-volume="reel">
+              </label>
+              <label>
+                <span>停止 <output data-v2-audio-volume-value="stop">100%</output></span>
+                <input type="range" min="0" max="200" step="5" value="100" data-v2-audio-volume="stop">
+              </label>
+              <label>
+                <span>レバー <output data-v2-audio-volume-value="lever">100%</output></span>
+                <input type="range" min="0" max="200" step="5" value="100" data-v2-audio-volume="lever">
+              </label>
+              <label>
+                <span>ボタン <output data-v2-audio-volume-value="button">100%</output></span>
+                <input type="range" min="0" max="200" step="5" value="100" data-v2-audio-volume="button">
+              </label>
+              <label>
+                <span>BGM <output data-v2-audio-volume-value="bgm">100%</output></span>
+                <input type="range" min="0" max="200" step="5" value="100" data-v2-audio-volume="bgm">
+              </label>
+              <div class="v2-bgm-volume-list">
+                <span class="v2-bgm-volume-list__title">BGM個別</span>
+                <label class="v2-bgm-volume">
+                  <span><b>ボーナス確定</b><output data-v2-audio-volume-value="bgmBonusConfirm">100%</output></span>
+                  <small>ギャンブルが大好きだ（ボーナス確定）</small>
+                  <input type="range" min="0" max="200" step="5" value="100" data-v2-audio-volume="bgmBonusConfirm">
+                </label>
+                <label class="v2-bgm-volume">
+                  <span><b>7揃モード</b><output data-v2-audio-volume-value="bgmSevenMode">100%</output></span>
+                  <small>ギャンブルが大好きだ x（7揃モード）</small>
+                  <input type="range" min="0" max="200" step="5" value="100" data-v2-audio-volume="bgmSevenMode">
+                </label>
+              </div>
+            </div>
             <div class="v2-meoshi-debug" aria-label="目押し調整">
               <strong>目押し調整</strong>
               <label>
@@ -142,6 +182,7 @@
     <script src="./src/v2/slot-v2-reels.js"></script>
     <script src="./src/v2/slot-v2-scenes.js"></script>
     <script src="./src/v2/slot-v2-scene-player.js"></script>
+    <script src="./src/v2/slot-v2-audio.js"></script>
     <script src="./src/v2/slot-v2-app.js"></script>
   </body>
 </html>

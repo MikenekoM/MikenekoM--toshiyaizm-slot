@@ -12,7 +12,7 @@
     "test:roles": "node scripts/role-alignment-test.mjs",
     "test:debug": "node scripts/debug-state-panel-test.mjs",
     "test:effects": "node scripts/effect-state-test.mjs && node scripts/effect-transition-test.mjs && node scripts/effect-sequence-test.mjs",
-    "test:v2": "node scripts/slot-v2-core-test.mjs && node scripts/slot-v2-meoshi-test.mjs && node scripts/slot-v2-stage-test.mjs && node scripts/slot-v2-scene-test.mjs && node scripts/slot-v2-bonus-test.mjs && node scripts/slot-v2-reel-visual-test.mjs && node scripts/slot-v2-auto-align-test.mjs && node scripts/slot-v2-video-scene-test.mjs && node scripts/slot-v2-smoke-test.mjs",
+    "test:v2": "node scripts/slot-v2-core-test.mjs && node scripts/slot-v2-meoshi-test.mjs && node scripts/slot-v2-stage-test.mjs && node scripts/slot-v2-scene-test.mjs && node scripts/slot-v2-bonus-test.mjs && node scripts/slot-v2-reel-visual-test.mjs && node scripts/slot-v2-auto-align-test.mjs && node scripts/slot-v2-video-scene-test.mjs && node scripts/slot-v2-smoke-test.mjs && node scripts/slot-v2-audio-test.mjs",
     "test:visual-report": "node scripts/visual-playtest-report.mjs",
     "test:dist": "node scripts/dist-smoke-test.mjs"
   }

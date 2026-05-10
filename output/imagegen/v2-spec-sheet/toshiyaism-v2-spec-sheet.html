@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>パチスロ トシヤイズム V2 解析速報</title>
+  <style>
+    :root {
+      --ink: #f8f3df;
+      --muted: #d5caa7;
+      --gold: #f6c04d;
+      --red: #e23d38;
+      --purple: #6f42c1;
+      --deep: #110d15;
+      --panel: rgba(27, 22, 21, 0.92);
+      --line: rgba(246, 192, 77, 0.46);
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      width: 1600px;
+      min-height: 2200px;
+      background: #120c12;
+      color: var(--ink);
+      font-family: "Yu Gothic", "Meiryo", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+      letter-spacing: 0;
+    }
+
+    body {
+      padding: 46px;
+      background:
+        radial-gradient(circle at 82% 5%, rgba(226, 61, 56, 0.32), transparent 28%),
+        radial-gradient(circle at 16% 12%, rgba(246, 192, 77, 0.28), transparent 24%),
+        linear-gradient(135deg, #09070b 0%, #241321 44%, #0d0a0d 100%);
+    }
+
+    .sheet {
+      position: relative;
+      min-height: 2108px;
+      overflow: hidden;
+      border: 8px solid var(--gold);
+      background:
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(31, 15, 14, 0.96), rgba(9, 7, 10, 0.97));
+      background-size: 42px 42px, 42px 42px, auto;
+      box-shadow: 0 0 0 2px #3a2507 inset, 0 20px 90px rgba(0,0,0,0.55);
+    }
+
+    .sheet::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.08) 35%, transparent 36%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .masthead {
+      display: grid;
+      grid-template-columns: 1fr 430px;
+      gap: 28px;
+      padding: 42px 42px 30px;
+      border-bottom: 6px solid var(--gold);
+      background: linear-gradient(90deg, rgba(226, 61, 56, 0.95), rgba(101, 36, 91, 0.7) 48%, rgba(16, 12, 14, 0.88));
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      width: max-content;
+      padding: 10px 16px;
+      background: #ffd86a;
+      color: #251208;
+      font-size: 28px;
+      font-weight: 900;
+      border: 3px solid #fff2b2;
+      transform: skewX(-8deg);
+    }
+
+    h1 {
+      margin: 20px 0 12px;
+      font-size: 96px;
+      line-height: 0.94;
+      font-weight: 1000;
+      text-shadow: 5px 5px 0 #301005, 0 0 28px rgba(246,192,77,0.5);
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 840px;
+      color: #fff3c6;
+      font-size: 28px;
+      line-height: 1.45;
+      font-weight: 700;
+    }
+
+    .cover-card {
+      position: relative;
+      min-height: 350px;
+      border: 4px solid rgba(246, 192, 77, 0.75);
+      background: radial-gradient(circle at 50% 20%, rgba(246,192,77,0.28), rgba(13,8,13,0.94) 62%);
+      overflow: hidden;
+    }
+
+    .cover-card img {
+      position: absolute;
+      inset: auto -80px -98px auto;
+      width: 520px;
+      opacity: 0.74;
+      filter: saturate(1.1) contrast(1.06);
+    }
+
+    .cover-badge {
+      position: absolute;
+      left: 22px;
+      top: 22px;
+      right: 22px;
+      padding: 18px;
+      background: rgba(0,0,0,0.68);
+      border: 2px solid var(--line);
+    }
+
+    .cover-badge strong {
+      display: block;
+      color: var(--gold);
+      font-size: 48px;
+      line-height: 1;
+    }
+
+    .cover-badge span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 22px;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      padding: 28px 34px 34px;
+    }
+
+    .panel {
+      border: 3px solid var(--line);
+      background: var(--panel);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.07) inset;
+    }
+
+    .panel.wide { grid-column: 1 / -1; }
+
+    .panel h2 {
+      margin: 0;
+      padding: 16px 18px 14px;
+      background: linear-gradient(90deg, #f6c04d, #9f4a21);
+      color: #1c1007;
+      font-size: 34px;
+      line-height: 1;
+      font-weight: 1000;
+    }
+
+    .panel-body { padding: 18px; }
+
+    .lead-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+    }
+
+    .metric {
+      min-height: 118px;
+      padding: 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.28));
+      border: 2px solid rgba(246,192,77,0.34);
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      color: #fff;
+      font-size: 30px;
+      line-height: 1.05;
+      font-weight: 1000;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 22px;
+      line-height: 1.22;
+    }
+
+    th,
+    td {
+      padding: 11px 10px;
+      border-bottom: 1px solid rgba(246,192,77,0.2);
+      vertical-align: middle;
+    }
+
+    th {
+      color: #241308;
+      background: #f0c15a;
+      font-weight: 1000;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    td:nth-child(2),
+    td:nth-child(3),
+    th:nth-child(2),
+    th:nth-child(3) {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .hot {
+      color: #ff746d;
+      font-weight: 1000;
+    }
+
+    .gold {
+      color: var(--gold);
+      font-weight: 1000;
+    }
+
+    .mini {
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.35;
+    }
+
+    .bars {
+      display: grid;
+      gap: 11px;
+    }
+
+    .bar {
+      display: grid;
+      grid-template-columns: 150px 1fr 74px;
+      align-items: center;
+      gap: 12px;
+      font-size: 22px;
+      font-weight: 900;
+    }
+
+    .bar-track {
+      height: 24px;
+      background: rgba(255,255,255,0.09);
+      border: 1px solid rgba(246,192,77,0.25);
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ffdf75, #e23d38);
+    }
+
+    .bonus-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .bonus-card {
+      padding: 16px;
+      border: 2px solid rgba(246,192,77,0.36);
+      background: rgba(0,0,0,0.34);
+    }
+
+    .bonus-card h3 {
+      margin: 0 0 12px;
+      color: #fff1a6;
+      font-size: 30px;
+      line-height: 1.1;
+    }
+
+    .bonus-card p {
+      margin: 7px 0;
+      color: var(--muted);
+      font-size: 22px;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .transition {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .transition h3 {
+      margin: 0;
+      padding: 10px 12px;
+      background: rgba(226, 61, 56, 0.84);
+      color: #fff;
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .transition ul {
+      margin: 0;
+      padding: 14px 18px 16px 32px;
+      min-height: 170px;
+      border: 2px solid rgba(246,192,77,0.25);
+      border-top: 0;
+      background: rgba(0,0,0,0.26);
+      font-size: 21px;
+      line-height: 1.42;
+      font-weight: 760;
+    }
+
+    .notice {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 18px;
+      align-items: stretch;
+      padding: 18px;
+      background: linear-gradient(90deg, rgba(226,61,56,0.22), rgba(246,192,77,0.08));
+    }
+
+    .notice strong {
+      display: grid;
+      place-items: center;
+      min-height: 132px;
+      color: #271406;
+      background: var(--gold);
+      border: 4px solid #fff0a8;
+      font-size: 44px;
+      font-weight: 1000;
+      text-align: center;
+    }
+
+    .notice p {
+      margin: 0;
+      color: #fff5cc;
+      font-size: 26px;
+      line-height: 1.45;
+      font-weight: 800;
+    }
+
+    .footer {
+      margin-top: 8px;
+      padding: 18px 34px 30px;
+      color: #c7b98f;
+      font-size: 18px;
+      line-height: 1.5;
+      border-top: 2px solid rgba(246,192,77,0.28);
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <header class="masthead">
+      <div>
+        <div class="kicker">V2正式スペック / 試作説明シート</div>
+        <h1>パチスロ<br>トシヤイズム<br>解析速報</h1>
+        <p class="subtitle">内部抽選、前兆、ロゴ揃い、継続率を一気読み。V2は「映像演出」と「内部当選」を分けて、最後まで断定しすぎない作り。</p>
+      </div>
+      <aside class="cover-card">
+        <img src="../../../assets/mock/full-mode-shell-v1-alpha.png" alt="">
+        <div class="cover-badge">
+          <strong>V2</strong>
+          <span>保存キー: toshiyaizm-slot-v2-state<br>実装値: src/v2/slot-v2-rules.js</span>
+        </div>
+      </aside>
+    </header>
+
+    <section class="content">
+      <article class="panel wide">
+        <h2>基本スペック早見</h2>
+        <div class="panel-body lead-grid">
+          <div class="metric"><span>通常BET</span><strong>3枚</strong></div>
+          <div class="metric"><span>有効ライン</span><strong>5ライン</strong></div>
+          <div class="metric"><span>通常スベリ</span><strong>3コマ</strong></div>
+          <div class="metric"><span>前兆</span><strong>16-32G</strong></div>
+          <div class="metric"><span>BB 1SET</span><strong>30G</strong></div>
+          <div class="metric"><span>継続率</span><strong>66/79/84/89%</strong></div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <h2>通常時 小役確率</h2>
+        <div class="panel-body">
+          <table>
+            <thead><tr><th>役</th><th>確率</th><th>払出</th></tr></thead>
+            <tbody>
+              <tr><td>ベル</td><td>1/40</td><td>8枚</td></tr>
+              <tr><td>リプレイ</td><td>1/7.3</td><td>再遊技</td></tr>
+              <tr><td>スイカ</td><td>1/119</td><td>6枚</td></tr>
+              <tr><td>角チェリー</td><td>1/135</td><td>2枚</td></tr>
+              <tr><td>トシヤチャンス</td><td>1/180</td><td>1枚</td></tr>
+              <tr><td class="hot">中段チェリー</td><td class="hot">1/247</td><td>2枚</td></tr>
+              <tr><td>ハズレ</td><td>約81.26%</td><td>0枚</td></tr>
+            </tbody>
+          </table>
+          <p class="mini">スイカ/チェリーは払い出しだけ目押し依存。取りこぼしても内部状態移行と前兆抽選は有効。</p>
+        </div>
+      </article>
+
+      <article class="panel">
+        <h2>前兆期待度 注目役</h2>
+        <div class="panel-body bars">
+          <div class="bar"><span>高確 中段チェ</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span>100%</span></div>
+          <div class="bar"><span>低確 中段チェ</span><div class="bar-track"><div class="bar-fill" style="width:25%"></div></div><span>25%</span></div>
+          <div class="bar"><span>通常 中段チェ</span><div class="bar-track"><div class="bar-fill" style="width:25%"></div></div><span>25%</span></div>
+          <div class="bar"><span>高確 スイカ</span><div class="bar-track"><div class="bar-fill" style="width:25%"></div></div><span>25%</span></div>
+          <div class="bar"><span>高確 チャンス</span><div class="bar-track"><div class="bar-fill" style="width:25%"></div></div><span>25%</span></div>
+          <div class="bar"><span>高確 角チェ</span><div class="bar-track"><div class="bar-fill" style="width:15%"></div></div><span>15%</span></div>
+        </div>
+      </article>
+
+      <article class="panel wide">
+        <h2>内部状態移行のツボ</h2>
+        <div class="panel-body transition">
+          <div>
+            <h3>低確</h3>
+            <ul>
+              <li>角チェ: 通常へ10%</li>
+              <li>スイカ: 通常25% / 高確3%</li>
+              <li>チャンス: 通常20% / 高確5% / 前兆1%</li>
+              <li>中段チェ: 通常50% / 前兆25%</li>
+            </ul>
+          </div>
+          <div>
+            <h3>通常</h3>
+            <ul>
+              <li>角チェ: 高確12%</li>
+              <li>スイカ: 高確30% / 前兆5%</li>
+              <li>チャンス: 高確25% / 前兆3%</li>
+              <li>中段チェ: 高確25% / 前兆25%</li>
+            </ul>
+          </div>
+          <div>
+            <h3>高確</h3>
+            <ul>
+              <li>角チェ: 前兆15%</li>
+              <li>スイカ: 前兆25%</li>
+              <li>チャンス: 前兆25%</li>
+              <li class="hot">中段チェ: 前兆100%</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <h2>入賞図柄振り分け</h2>
+        <div class="panel-body bonus-grid">
+          <div class="bonus-card">
+            <h3>通常7揃い 94</h3>
+            <p>継続率: 66% 55 / 79% 30 / 84% 11 / 89% 4</p>
+            <p>ストック: 1個70 / 2個24 / 3個6</p>
+            <p class="gold">目押しで7を揃える必要あり。</p>
+          </div>
+          <div class="bonus-card">
+            <h3>トシヤロゴ 6</h3>
+            <p>継続率: 66% 10 / 79% 35 / 84% 35 / 89% 20</p>
+            <p>ストック: 2個30 / 3個28 / 4個20 / 5個12 / 7個7 / 10個3</p>
+            <p class="gold">入賞待ち時は自動でロゴ揃い。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <h2>BB中の仕様</h2>
+        <div class="panel-body">
+          <table>
+            <tbody>
+              <tr><th>1SET</th><td>30G固定</td><td></td></tr>
+              <tr><th>成立役</th><td>ベル50 / リプレイ50</td><td></td></tr>
+              <tr><th>払い出し</th><td>毎G 8枚</td><td></td></tr>
+              <tr><th>継続</th><td>ストック優先、保証後に継続率抽選</td><td></td></tr>
+              <tr><th>復活</th><td>継続かつストックなしの一部</td><td>約15%</td></tr>
+            </tbody>
+          </table>
+          <p class="mini">ロゴ揃いは高継続率・多ストック寄り。ただし完走確定ではない。</p>
+        </div>
+      </article>
+
+      <article class="panel wide">
+        <h2>見た目示唆 normalStage</h2>
+        <div class="notice">
+          <strong>見た目と<br>内部は別</strong>
+          <p>`street / heat / deep` は動画の出やすさだけを変える。深い画面でも確定ではなく、静かな画面でも内部では前兆へ進むことがある。演出で答えを見せすぎないのがV2の味。</p>
+        </div>
+      </article>
+    </section>
+
+    <footer class="footer">
+      試作説明画像。数値は 2026-05-10 時点の V2 実装から整理。実機風の解析誌表現だが、ゲーム内の厳密な最終仕様は `src/v2/slot-v2-rules.js` を正とする。
+    </footer>
+  </main>
+</body>
+</html>

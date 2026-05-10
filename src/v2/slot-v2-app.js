@@ -4,6 +4,19 @@
   const reelsApi = global.ToshiyaSlotV2Reels;
   const scenes = global.ToshiyaSlotV2Scenes;
   const scenePlayerFactory = global.ToshiyaSlotV2ScenePlayer;
+  const audioFactory = global.ToshiyaSlotV2Audio;
+  const audioVolumeStorageKey = "toshiyaizm-slot-v2-audio-volumes";
+  const defaultAudioVolumes = {
+    master: 1,
+    reel: 1,
+    stop: 1,
+    lever: 1,
+    button: 1,
+    bgm: 1,
+    bgmBonusConfirm: 1,
+    bgmSevenMode: 1,
+  };
+  const audioVolumeKeys = Object.keys(defaultAudioVolumes);
 
   const dom = {
     coin: document.querySelector("#v2Coins"),
@@ -35,12 +48,16 @@
     debugMeoshiRole: document.querySelector("#v2DebugMeoshiRole"),
     debugMeoshiApply: document.querySelector("#v2DebugMeoshiApply"),
     debugMeoshiForce: document.querySelector("#v2DebugMeoshiForce"),
+    audioVolumeInputs: [...document.querySelectorAll("[data-v2-audio-volume]")],
+    audioVolumeOutputs: [...document.querySelectorAll("[data-v2-audio-volume-value]")],
   };
 
   const scenePlayer = scenePlayerFactory.create({
     root: document.querySelector("#v2Scene"),
     onVideoEnded: handleSceneVideoEnded,
   });
+  let audioVolumes = loadAudioVolumeSettings();
+  const slotAudio = audioFactory?.create?.({ volumes: audioVolumes }) || null;
   let rng = Math.random;
   let state = loadState();
   let meoshiTuning = {
@@ -397,6 +414,7 @@
     }
     if (judgeRunning) return;
     if (state.phase === "bonus" && state.bonus?.gamesInSet >= state.bonus?.setGames) {
+      slotAudio?.playButton?.("confirm");
       runBonusJudge();
       return;
     }
@@ -440,6 +458,8 @@
       decorativeNudges: [null, null, null],
     };
     nextForcedStops = null;
+    slotAudio?.playLever?.();
+    slotAudio?.startReels?.();
     reelStates.forEach((reelState) => {
       reelState.spinStartOffset = reelState.offset;
       reelState.spinStartedAt = startedAt;
@@ -488,6 +508,7 @@
 
   function stopReel(index) {
     if (!currentSpin || currentSpin.stops[index] !== null) return;
+    slotAudio?.stopReel?.(index);
     renderReels();
     const reelState = reelStates[index];
     const forced = currentSpin.forcedStops?.[index];
@@ -559,6 +580,7 @@
     const spin = currentSpin;
     currentSpin = null;
     stopReelLoop();
+    slotAudio?.stopAllReels?.({ silent: true });
     lastMeoshiResult = buildMeoshiDebug(spin);
     const stopResult = reelsApi.evaluateStops(spin.role, spin.stops);
 
@@ -678,6 +700,7 @@
   function forceDebugMeoshiRole() {
     applyMeoshiTuning({ silent: true });
     stopReelLoop();
+    slotAudio?.stopAllReels?.({ silent: true });
     hideRoleFlash();
     currentSpin = null;
     judgeRunning = false;
@@ -743,8 +766,19 @@
     playNormalLoopScene();
   }
 
+  function getDesiredBgmKind() {
+    if (currentSpin?.kind === "bonusEntry") return "sevenMode";
+    if (state.phase === "normal" && state.internalState === "bonusReady") return "bonusConfirm";
+    return null;
+  }
+
+  function syncBgmForState() {
+    slotAudio?.syncModeBgm?.(getDesiredBgmKind());
+  }
+
   function applyDebugState() {
     stopReelLoop();
+    slotAudio?.stopAllReels?.({ silent: true });
     hideRoleFlash();
     currentSpin = null;
     judgeRunning = false;
@@ -790,6 +824,7 @@
 
   function resetDebugState() {
     stopReelLoop();
+    slotAudio?.stopAllReels?.({ silent: true });
     hideRoleFlash();
     currentSpin = null;
     judgeRunning = false;
@@ -799,6 +834,63 @@
     saveState();
     playNormalLoopScene();
     render();
+  }
+
+  function clampAudioVolume(value, fallback = 1) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    return Math.max(0, Math.min(2, number));
+  }
+
+  function normalizeAudioVolumeSettings(values = {}) {
+    return Object.fromEntries(audioVolumeKeys.map((key) => [
+      key,
+      clampAudioVolume(values[key], defaultAudioVolumes[key]),
+    ]));
+  }
+
+  function loadAudioVolumeSettings() {
+    try {
+      return normalizeAudioVolumeSettings(JSON.parse(localStorage.getItem(audioVolumeStorageKey) || "{}"));
+    } catch (_) {
+      return { ...defaultAudioVolumes };
+    }
+  }
+
+  function saveAudioVolumeSettings() {
+    try {
+      localStorage.setItem(audioVolumeStorageKey, JSON.stringify(audioVolumes));
+    } catch (_) {}
+  }
+
+  function formatAudioVolume(value) {
+    return `${Math.round(clampAudioVolume(value) * 100)}%`;
+  }
+
+  function syncAudioVolumeControls() {
+    dom.audioVolumeInputs.forEach((input) => {
+      const key = input.dataset.v2AudioVolume;
+      if (!audioVolumeKeys.includes(key)) return;
+      const percent = Math.round(audioVolumes[key] * 100);
+      if (document.activeElement !== input) input.value = String(percent);
+      const output = dom.audioVolumeOutputs.find((item) => item.dataset.v2AudioVolumeValue === key);
+      if (output) output.textContent = formatAudioVolume(audioVolumes[key]);
+    });
+  }
+
+  function applyAudioVolumeSettings(nextVolumes = {}, options = {}) {
+    audioVolumes = normalizeAudioVolumeSettings({ ...audioVolumes, ...nextVolumes });
+    slotAudio?.setVolumes?.(audioVolumes);
+    if (!options.skipSave) saveAudioVolumeSettings();
+    syncAudioVolumeControls();
+    return { ...audioVolumes };
+  }
+
+  function handleAudioVolumeInput(event) {
+    const input = event.currentTarget;
+    const key = input?.dataset.v2AudioVolume;
+    if (!audioVolumeKeys.includes(key)) return;
+    applyAudioVolumeSettings({ [key]: Number(input.value) / 100 });
   }
 
   function syncDebugControls() {
@@ -817,9 +909,11 @@
     if (dom.debugBonusEntrySlip && document.activeElement !== dom.debugBonusEntrySlip) {
       dom.debugBonusEntrySlip.value = String(meoshiTuning.bonusEntrySlipCells);
     }
+    syncAudioVolumeControls();
   }
 
   function render() {
+    syncBgmForState();
     const labels = rules.internalStateLabels;
     if (dom.coin) dom.coin.textContent = state.coins.toLocaleString("ja-JP");
     if (dom.totalGames) dom.totalGames.textContent = state.totalGames.toLocaleString("ja-JP");
@@ -945,6 +1039,7 @@
       roleFlashRole: dom.roleFlash?.dataset.role || null,
       meoshiTuning: { ...meoshiTuning },
       meoshiDebug: currentSpin ? buildMeoshiDebug(currentSpin) : lastMeoshiResult,
+      audioDebug: slotAudio?.getDebugState?.() || null,
       reels: getReelDebug(),
     });
   }
@@ -953,10 +1048,26 @@
   dom.stops.forEach((button) => {
     button.addEventListener("click", () => stopReel(Number(button.dataset.v2Stop)));
   });
-  dom.debugApply?.addEventListener("click", applyDebugState);
-  dom.debugReset?.addEventListener("click", resetDebugState);
-  dom.debugMeoshiApply?.addEventListener("click", () => applyMeoshiTuning());
-  dom.debugMeoshiForce?.addEventListener("click", forceDebugMeoshiRole);
+  dom.audioVolumeInputs.forEach((input) => {
+    input.addEventListener("input", handleAudioVolumeInput);
+    input.addEventListener("change", handleAudioVolumeInput);
+  });
+  dom.debugApply?.addEventListener("click", () => {
+    slotAudio?.playButton?.("confirm");
+    applyDebugState();
+  });
+  dom.debugReset?.addEventListener("click", () => {
+    slotAudio?.playButton?.("confirm");
+    resetDebugState();
+  });
+  dom.debugMeoshiApply?.addEventListener("click", () => {
+    slotAudio?.playButton?.("soft");
+    applyMeoshiTuning();
+  });
+  dom.debugMeoshiForce?.addEventListener("click", () => {
+    slotAudio?.playButton?.("confirm");
+    forceDebugMeoshiRole();
+  });
   document.addEventListener("keydown", (event) => {
     if (event.code === "Space" || event.code === "ShiftLeft") {
       event.preventDefault();
@@ -1034,6 +1145,10 @@
       if (dom.debugMeoshiSlip && Number.isFinite(Number(data.meoshiSlipCells))) dom.debugMeoshiSlip.value = String(Number(data.meoshiSlipCells));
       if (dom.debugBonusEntrySlip && Number.isFinite(Number(data.bonusEntrySlipCells))) dom.debugBonusEntrySlip.value = String(Number(data.bonusEntrySlipCells));
       applyMeoshiTuning({ silent: true });
+      return renderGameToText();
+    },
+    setAudioVolumes(data = {}) {
+      applyAudioVolumeSettings(data);
       return renderGameToText();
     },
   };

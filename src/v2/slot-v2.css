@@ -670,6 +670,7 @@ button {
 
 .v2-debug-controls label:nth-child(3),
 .v2-debug-buttons,
+.v2-audio-debug,
 .v2-meoshi-debug {
   grid-column: 1 / -1;
 }
@@ -691,6 +692,82 @@ button {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+.v2-audio-debug {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 10px;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 225, 138, 0.22);
+}
+
+.v2-audio-debug > strong {
+  grid-column: 1 / -1;
+  color: var(--gold-bright);
+  font-size: 12px;
+}
+
+.v2-audio-debug label {
+  gap: 5px;
+}
+
+.v2-audio-debug label span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.v2-audio-debug output {
+  color: #fff7e8;
+  font-variant-numeric: tabular-nums;
+}
+
+.v2-debug-controls .v2-audio-debug input[type="range"] {
+  min-height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: var(--gold-bright);
+}
+
+.v2-bgm-volume-list {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.v2-bgm-volume-list__title {
+  color: #bfb49c;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.v2-audio-debug .v2-bgm-volume {
+  display: grid;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 225, 138, 0.18);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.v2-bgm-volume b {
+  color: #fff2c8;
+  font-size: 11px;
+}
+
+.v2-bgm-volume small {
+  overflow: hidden;
+  color: #dccfae;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .v2-meoshi-debug {

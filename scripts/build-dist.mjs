@@ -20,6 +20,7 @@ const requiredFiles = [
   "src/v2/slot-v2-reels.js",
   "src/v2/slot-v2-scenes.js",
   "src/v2/slot-v2-scene-player.js",
+  "src/v2/slot-v2-audio.js",
   "src/v2/slot-v2-app.js",
   "src/aikotoba.js",
   "src/comment-data.js",
@@ -42,6 +43,7 @@ const requiredFiles = [
 const requiredDirs = [
   "assets/effects/runtime",
   "assets/videos/v2",
+  "assets/voices/v2",
 ];
 
 function assertInsideRoot(target) {

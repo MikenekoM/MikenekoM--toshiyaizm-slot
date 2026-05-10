@@ -14,10 +14,16 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1366, height: 940 }, deviceScaleFactor: 1 });
 const errors = [];
 const failedRequests = [];
+
+function isExpectedBgmAbort(request) {
+  return request.url().includes("/assets/voices/v2/bgm/") && (request.failure()?.errorText || "").includes("ERR_ABORTED");
+}
+
 page.on("console", (msg) => {
   if (msg.type() === "error") errors.push(msg.text());
 });
 page.on("requestfailed", (request) => {
+  if (isExpectedBgmAbort(request)) return;
   failedRequests.push(`${request.url()} ${request.failure()?.errorText || ""}`.trim());
 });
 

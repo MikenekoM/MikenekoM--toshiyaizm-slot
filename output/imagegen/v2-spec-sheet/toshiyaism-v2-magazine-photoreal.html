@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>パチスロ トシヤイズム V2 攻略誌風</title>
+  <style>
+    :root {
+      --paper: #fff4d2;
+      --ink: #15100b;
+      --red: #e30d18;
+      --deep-red: #9d0612;
+      --yellow: #ffd739;
+      --gold: #f4b735;
+      --blue: #1f67d2;
+      --purple: #6b1fb5;
+      --black: #111;
+      --cream: #fff7dc;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      width: 1800px;
+      min-height: 2450px;
+      color: var(--ink);
+      font-family: "Yu Gothic", "Meiryo", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+      letter-spacing: 0;
+      background: #2b1712;
+    }
+
+    body {
+      padding: 36px;
+      background:
+        radial-gradient(circle at 8% 3%, rgba(255, 220, 80, 0.4), transparent 22%),
+        radial-gradient(circle at 90% 8%, rgba(226, 13, 24, 0.38), transparent 24%),
+        linear-gradient(135deg, #2d160f, #0c0808 70%);
+    }
+
+    .page {
+      position: relative;
+      overflow: hidden;
+      min-height: 2378px;
+      background:
+        linear-gradient(90deg, rgba(0,0,0,0.035) 1px, transparent 1px),
+        linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+        var(--paper);
+      background-size: 18px 18px, 18px 18px, auto;
+      border: 14px solid #f3c13c;
+      box-shadow:
+        0 24px 90px rgba(0,0,0,0.62),
+        0 0 0 4px #111 inset,
+        0 0 0 12px #fff2bd inset;
+    }
+
+    .page::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(110deg, transparent 0 38%, rgba(255,255,255,0.34) 39%, transparent 41%),
+        radial-gradient(circle at 50% 0%, rgba(255,255,255,0.22), transparent 30%);
+      mix-blend-mode: soft-light;
+    }
+
+    .topline {
+      display: grid;
+      grid-template-columns: 1fr 430px;
+      align-items: center;
+      gap: 18px;
+      padding: 18px 28px;
+      background: var(--black);
+      color: #fff;
+      border-bottom: 7px solid var(--yellow);
+      font-weight: 900;
+    }
+
+    .topline strong {
+      color: var(--yellow);
+      font-size: 42px;
+    }
+
+    .topline span {
+      text-align: right;
+      font-size: 24px;
+      color: #fff0b5;
+    }
+
+    .hero {
+      position: relative;
+      height: 810px;
+      background: #111;
+      border-bottom: 10px solid #111;
+    }
+
+    .hero-photo {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: saturate(1.18) contrast(1.08);
+    }
+
+    .hero-vignette {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(0,0,0,0.7), transparent 38%, rgba(0,0,0,0.38)),
+        linear-gradient(0deg, rgba(0,0,0,0.72), transparent 42%);
+    }
+
+    .mag-logo {
+      position: absolute;
+      left: 44px;
+      top: 38px;
+      width: 410px;
+      padding: 18px 22px;
+      color: #111;
+      background: linear-gradient(180deg, #fffef3, #ffd63d);
+      border: 6px solid #111;
+      transform: rotate(-3deg);
+      box-shadow: 8px 8px 0 rgba(0,0,0,0.55);
+      font-size: 45px;
+      line-height: 1.05;
+      font-weight: 1000;
+    }
+
+    .mag-logo small {
+      display: block;
+      margin-top: 6px;
+      color: var(--red);
+      font-size: 22px;
+      letter-spacing: 0.08em;
+    }
+
+    h1 {
+      position: absolute;
+      left: 44px;
+      bottom: 80px;
+      margin: 0;
+      color: #fff;
+      font-size: 138px;
+      line-height: 0.9;
+      font-weight: 1000;
+      text-shadow:
+        7px 7px 0 #111,
+        12px 12px 0 var(--red),
+        0 0 26px rgba(255,215,57,0.8);
+    }
+
+    .hero-copy {
+      position: absolute;
+      left: 54px;
+      bottom: 28px;
+      padding: 10px 18px;
+      background: rgba(255, 215, 57, 0.94);
+      border: 4px solid #111;
+      color: #111;
+      font-size: 30px;
+      font-weight: 1000;
+    }
+
+    .burst {
+      position: absolute;
+      display: grid;
+      place-items: center;
+      width: 260px;
+      height: 260px;
+      color: #111;
+      background: var(--yellow);
+      border: 6px solid #111;
+      border-radius: 50%;
+      text-align: center;
+      font-weight: 1000;
+      box-shadow: 8px 8px 0 rgba(0,0,0,0.52);
+    }
+
+    .burst::before {
+      content: "";
+      position: absolute;
+      inset: -22px;
+      background: repeating-conic-gradient(from 0deg, var(--yellow) 0 8deg, transparent 8deg 16deg);
+      z-index: -1;
+    }
+
+    .burst strong {
+      display: block;
+      color: var(--red);
+      font-size: 56px;
+      line-height: 0.95;
+    }
+
+    .burst span {
+      display: block;
+      margin-top: 8px;
+      font-size: 28px;
+      line-height: 1.05;
+    }
+
+    .burst.one { right: 60px; top: 52px; transform: rotate(8deg); }
+    .burst.two { right: 300px; bottom: 48px; width: 214px; height: 214px; transform: rotate(-12deg); }
+    .burst.two strong { font-size: 43px; }
+    .burst.two span { font-size: 23px; }
+
+    .content {
+      display: grid;
+      grid-template-columns: 1.04fr 0.96fr;
+      gap: 26px;
+      padding: 30px;
+    }
+
+    .strip {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 13px;
+      padding: 14px;
+      background: #111;
+      border: 7px solid var(--red);
+      box-shadow: 8px 8px 0 rgba(0,0,0,0.16);
+    }
+
+    .photo {
+      position: relative;
+      min-height: 188px;
+      overflow: hidden;
+      border: 4px solid #fff;
+      background: #000;
+    }
+
+    .photo img {
+      width: 100%;
+      height: 100%;
+      min-height: 188px;
+      object-fit: cover;
+      display: block;
+      filter: saturate(1.12) contrast(1.06);
+    }
+
+    .photo em {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 8px 10px;
+      color: #fff;
+      background: linear-gradient(90deg, rgba(227,13,24,0.94), rgba(0,0,0,0.65));
+      font-style: normal;
+      font-size: 21px;
+      font-weight: 1000;
+    }
+
+    .feature,
+    .spec,
+    .column {
+      background: #fffdf0;
+      border: 6px solid #111;
+      box-shadow: 8px 8px 0 rgba(0,0,0,0.16);
+    }
+
+    .feature h2,
+    .spec h2,
+    .column h2 {
+      margin: 0;
+      padding: 12px 18px;
+      color: #fff;
+      background: linear-gradient(90deg, var(--red), #111);
+      border-bottom: 5px solid var(--yellow);
+      font-size: 42px;
+      line-height: 1.02;
+      font-weight: 1000;
+    }
+
+    .feature-body,
+    .spec-body,
+    .column-body {
+      padding: 20px;
+    }
+
+    .lead-poster {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .cabinet-cut {
+      position: relative;
+      min-height: 510px;
+      background:
+        radial-gradient(circle at 50% 20%, rgba(255,215,57,0.45), transparent 46%),
+        linear-gradient(180deg, #2a1720, #070506);
+      border: 5px solid #111;
+      overflow: hidden;
+    }
+
+    .cabinet-cut img {
+      position: absolute;
+      left: -130px;
+      top: -40px;
+      width: 780px;
+      max-width: none;
+      filter: drop-shadow(18px 20px 12px rgba(0,0,0,0.62)) saturate(1.14);
+    }
+
+    .headline-block {
+      display: grid;
+      gap: 14px;
+    }
+
+    .big-number {
+      padding: 18px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), #4c0509);
+      border: 5px solid #111;
+      transform: rotate(1deg);
+    }
+
+    .big-number span {
+      display: block;
+      color: var(--yellow);
+      font-size: 28px;
+      font-weight: 1000;
+    }
+
+    .big-number strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 78px;
+      line-height: 0.95;
+      font-weight: 1000;
+    }
+
+    .copy-box {
+      padding: 18px;
+      border: 4px solid #111;
+      background: #fff7cf;
+      font-size: 28px;
+      line-height: 1.35;
+      font-weight: 900;
+    }
+
+    .copy-box b { color: var(--red); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 25px;
+      line-height: 1.25;
+      font-weight: 850;
+    }
+
+    th {
+      padding: 10px;
+      color: #111;
+      background: var(--yellow);
+      border: 3px solid #111;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 10px;
+      border: 3px solid #111;
+      background: #fff8d9;
+    }
+
+    td:nth-child(2),
+    td:nth-child(3) {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .rank-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .rank {
+      display: grid;
+      grid-template-columns: 130px 1fr 104px;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      background: #fff7d0;
+      border: 4px solid #111;
+      font-size: 26px;
+      font-weight: 1000;
+    }
+
+    .rank mark {
+      display: grid;
+      place-items: center;
+      height: 52px;
+      color: #fff;
+      background: var(--red);
+      border: 3px solid #111;
+      font-size: 24px;
+    }
+
+    .meter {
+      height: 28px;
+      border: 3px solid #111;
+      background: #ded1ae;
+    }
+
+    .meter i {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #ffe259, #ffa751, #e30d18);
+    }
+
+    .focus {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 520px 1fr;
+      gap: 24px;
+      padding: 20px;
+      background: linear-gradient(135deg, #111, #3d050b);
+      border: 7px solid var(--yellow);
+      box-shadow: 8px 8px 0 rgba(0,0,0,0.18);
+      color: #fff;
+    }
+
+    .focus img {
+      width: 100%;
+      min-height: 310px;
+      object-fit: cover;
+      border: 5px solid #fff;
+    }
+
+    .focus h2 {
+      margin: 0 0 14px;
+      color: var(--yellow);
+      font-size: 58px;
+      line-height: 1.02;
+      text-shadow: 4px 4px 0 #000;
+    }
+
+    .focus p {
+      margin: 0;
+      color: #fff7c4;
+      font-size: 31px;
+      line-height: 1.42;
+      font-weight: 900;
+    }
+
+    .label-list {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .label-list span {
+      padding: 12px;
+      color: #111;
+      background: var(--yellow);
+      border: 4px solid #111;
+      text-align: center;
+      font-size: 26px;
+      font-weight: 1000;
+    }
+
+    .wide {
+      grid-column: 1 / -1;
+    }
+
+    .entry-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .entry {
+      min-height: 238px;
+      padding: 18px;
+      color: #fff;
+      background:
+        linear-gradient(135deg, rgba(0,0,0,0.62), rgba(0,0,0,0.2)),
+        var(--entry-bg);
+      background-size: cover;
+      background-position: center;
+      border: 5px solid #111;
+    }
+
+    .entry h3 {
+      margin: 0;
+      display: inline-block;
+      padding: 8px 12px;
+      background: var(--red);
+      border: 3px solid #fff;
+      font-size: 37px;
+      line-height: 1;
+    }
+
+    .entry p {
+      margin: 14px 0 0;
+      max-width: 620px;
+      font-size: 27px;
+      line-height: 1.34;
+      font-weight: 950;
+      text-shadow: 3px 3px 0 #000;
+    }
+
+    .footer {
+      position: relative;
+      z-index: 1;
+      margin: 0 30px 30px;
+      padding: 18px 22px;
+      color: #111;
+      background: #ffe889;
+      border: 5px solid #111;
+      font-size: 22px;
+      line-height: 1.35;
+      font-weight: 850;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topline">
+      <strong>永久保存版 TOSHIYAISM SLOT V2</strong>
+      <span>特別付録: 内部状態&ロゴ揃い早見</span>
+    </div>
+
+    <section class="hero">
+      <img class="hero-photo" src="../../../assets/mock/room-style-shell-v1-alpha.png" alt="">
+      <div class="hero-vignette"></div>
+      <div class="mag-logo">攻略MAGAZINE<small>写真でわかるV2新仕様</small></div>
+      <h1>トシヤイズム<br>V2 激写攻略</h1>
+      <div class="hero-copy">筐体写真・演出カット・内部確率をまとめて総チェック</div>
+      <div class="burst one"><div><strong>高確中</strong><span>中段チェリー<br>前兆100%</span></div></div>
+      <div class="burst two"><div><strong>ロゴ</strong><span>高継続&<br>多ストック寄り</span></div></div>
+    </section>
+
+    <section class="content">
+      <div class="strip">
+        <figure class="photo"><img src="../../../assets/effects/runtime/bg_prebonus_deep_pressure.webp" alt=""><em>前兆濃厚ムード</em></figure>
+        <figure class="photo"><img src="../../../assets/effects/runtime/bg_premium_rainbow_ism.webp" alt=""><em>確定/ロゴ期待</em></figure>
+        <figure class="photo"><img src="../../../assets/effects/runtime/bonus_ism_awakening.webp" alt=""><em>7揃い開始</em></figure>
+        <figure class="photo"><img src="../../../assets/effects/runtime/battle_enemy_attack.webp" alt=""><em>BB中バトル</em></figure>
+        <figure class="photo"><img src="../../../assets/effects/runtime/battle_continue_counter.webp" alt=""><em>継続の瞬間</em></figure>
+      </div>
+
+      <article class="feature wide">
+        <h2>フォトで見るV2筐体 & 今回の攻略ポイント</h2>
+        <div class="feature-body lead-poster">
+          <div class="cabinet-cut">
+            <img src="../../../assets/mock/full-mode-shell-v1-alpha.png" alt="">
+          </div>
+          <div class="headline-block">
+            <div class="big-number"><span>V2はここが違う</span><strong>内部当選後も<br>演出は断定しない</strong></div>
+            <div class="copy-box">通常時は <b>low / normal / high / prelude / bonusReady</b> で管理。見た目の <b>normalStage</b> は動画の出やすさだけを変えるので、深い画面でも確定ではない。</div>
+            <table>
+              <tbody>
+                <tr><th>BET</th><td>3枚</td><td></td></tr>
+                <tr><th>有効ライン</th><td>5ライン</td><td></td></tr>
+                <tr><th>前兆</th><td>16-32G</td><td>均等</td></tr>
+                <tr><th>BB</th><td>1SET 30G</td><td>毎G8枚</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+
+      <article class="spec">
+        <h2>通常時 役確率</h2>
+        <div class="spec-body">
+          <table>
+            <thead><tr><th>役</th><th>確率</th><th>払出</th></tr></thead>
+            <tbody>
+              <tr><td>ベル</td><td>1/40</td><td>8枚</td></tr>
+              <tr><td>リプレイ</td><td>1/7.3</td><td>再遊技</td></tr>
+              <tr><td>スイカ</td><td>1/119</td><td>6枚</td></tr>
+              <tr><td>角チェリー</td><td>1/135</td><td>2枚</td></tr>
+              <tr><td>トシヤチャンス</td><td>1/180</td><td>1枚</td></tr>
+              <tr><td>中段チェリー</td><td>1/247</td><td>2枚</td></tr>
+              <tr><td>ハズレ</td><td>約81.26%</td><td>0枚</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="column">
+        <h2>前兆期待度ランキング</h2>
+        <div class="column-body rank-grid">
+          <div class="rank"><mark>1位</mark><span>高確 中段チェリー</span><b>100%</b><div class="meter" style="grid-column:2 / 4"><i style="width:100%"></i></div></div>
+          <div class="rank"><mark>2位</mark><span>低確/通常 中段チェリー</span><b>25%</b><div class="meter" style="grid-column:2 / 4"><i style="width:25%"></i></div></div>
+          <div class="rank"><mark>3位</mark><span>高確 スイカ/チャンス</span><b>25%</b><div class="meter" style="grid-column:2 / 4"><i style="width:25%"></i></div></div>
+          <div class="rank"><mark>4位</mark><span>高確 角チェリー</span><b>15%</b><div class="meter" style="grid-column:2 / 4"><i style="width:15%"></i></div></div>
+        </div>
+      </article>
+
+      <section class="focus">
+        <img src="../../../assets/effects/runtime/cut_comic_big_surprise_toshiya.webp" alt="">
+        <div>
+          <h2>レア役は取りこぼしても内部効果アリ!</h2>
+          <p>スイカ/チェリーは払い出しだけ目押し依存。小役の見た目で失敗しても、内部状態移行や前兆抽選は成立役どおりに処理される。ベルとリプレイは内部成立時に自動停止。</p>
+          <div class="label-list">
+            <span>スイカ 1/119</span>
+            <span>角チェ 1/135</span>
+            <span>中段チェ 1/247</span>
+            <span>チャンス 1/180</span>
+          </div>
+        </div>
+      </section>
+
+      <article class="feature wide">
+        <h2>入賞図柄振り分け & BB中の夢どころ</h2>
+        <div class="feature-body entry-cards">
+          <div class="entry" style="--entry-bg: url('../../../assets/effects/runtime/bonus_ism_awakening.webp')">
+            <h3>通常7揃い 94</h3>
+            <p>継続率は66/79/84/89%。ストックは1-3個。目押しで揃える入口。</p>
+          </div>
+          <div class="entry" style="--entry-bg: url('../../../assets/effects/runtime/bg_premium_rainbow_ism.webp')">
+            <h3>トシヤロゴ 6</h3>
+            <p>79%以上に寄り、ストックも2-10個に広がる。完走確定ではないが夢は大きい。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="spec wide">
+        <h2>誌面メモ: 内部状態移行の見方</h2>
+        <div class="spec-body">
+          <table>
+            <thead><tr><th>状態</th><th>注目契機</th><th>前兆突入</th><th>見どころ</th></tr></thead>
+            <tbody>
+              <tr><td>低確</td><td>中段チェリー</td><td>25%</td><td>通常へ上がる50%も重要</td></tr>
+              <tr><td>通常</td><td>スイカ / チャンス / 中段チェリー</td><td>5% / 3% / 25%</td><td>高確移行も期待</td></tr>
+              <tr><td>高確</td><td>レア役全般</td><td>15-100%</td><td>中段チェリーは前兆確定</td></tr>
+              <tr><td>前兆</td><td>16-32G消化</td><td>内部当選済み</td><td>画面は最後まで断定しすぎない</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <footer class="footer">
+      試作のフォトリアル攻略雑誌風レイアウト。数値は `src/v2/slot-v2-rules.js` の現在値を元に整理。既存の筐体モック、演出画像、V2素材を誌面風に再構成している。
+    </footer>
+  </main>
+</body>
+</html>
