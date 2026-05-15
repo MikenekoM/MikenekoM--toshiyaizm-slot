@@ -89,18 +89,31 @@ button {
   filter: drop-shadow(0 28px 70px rgba(0, 0, 0, 0.72));
 }
 
-.v2-machine__art {
+.v2-machine__background,
+.v2-machine__cabinet {
   position: absolute;
   left: var(--board-x);
   top: var(--board-y);
-  z-index: 2;
   display: block;
   width: var(--board-w);
   height: var(--board-h);
   opacity: 1;
+  object-fit: cover;
   user-select: none;
   pointer-events: none;
   -webkit-user-drag: none;
+}
+
+.v2-machine__background {
+  z-index: 0;
+}
+
+.v2-machine__background[hidden] {
+  display: none;
+}
+
+.v2-machine__cabinet {
+  z-index: 2;
 }
 
 .v2-status {
@@ -207,6 +220,23 @@ button {
   font-size: 30px;
   font-weight: 900;
   line-height: 1;
+}
+
+:root[data-v2-cabinet="toshiya-motif-v1"] .v2-top-effect {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.36)),
+    url("../../assets/skins/v2/toshiya-motif-v1/top-effect.png") center / cover no-repeat;
+  box-shadow:
+    0 0 18px rgba(255, 225, 138, 0.24),
+    0 0 42px rgba(232, 59, 45, 0.34);
+}
+
+:root[data-v2-cabinet="toshiya-motif-v1"] .v2-top-effect::before {
+  opacity: 0.18;
+}
+
+:root[data-v2-cabinet="toshiya-motif-v1"] .v2-top-effect::after {
+  opacity: 0.24;
 }
 
 @keyframes v2TopPulse {
@@ -566,15 +596,79 @@ button {
   opacity: 0.38;
 }
 
+.v2-appearance-switch {
+  position: absolute;
+  left: 34px;
+  bottom: 20px;
+  z-index: 7;
+  display: grid;
+  gap: 8px;
+  width: 292px;
+  padding: 10px;
+  border: 1px solid rgba(255, 225, 138, 0.5);
+  border-radius: 8px;
+  background: rgba(4, 4, 5, 0.78);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.58), 0 0 18px rgba(255, 225, 138, 0.12);
+  pointer-events: auto;
+}
+
+.v2-appearance-switch__group {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.v2-appearance-switch__label {
+  color: #dccfae;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 2px 0 #000;
+}
+
+.v2-appearance-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.v2-appearance-switch button {
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid rgba(255, 225, 138, 0.32);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.52);
+  color: #fff7e8;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.v2-appearance-switch button.is-active,
+.v2-appearance-switch button[aria-pressed="true"] {
+  border-color: rgba(255, 225, 138, 0.82);
+  background: rgba(255, 225, 138, 0.2);
+  color: var(--gold-bright);
+  box-shadow: 0 0 12px rgba(255, 225, 138, 0.24);
+}
+
 .v2-side {
   position: absolute;
   top: 24px;
   right: 24px;
   z-index: 8;
   display: grid;
-  align-content: start;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
   width: 314px;
+  height: calc(var(--play-machine-h) - 48px);
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -587,6 +681,12 @@ button {
   color: #fff7e8;
   box-shadow: 0 0 18px rgba(142, 67, 255, 0.22);
   pointer-events: auto;
+}
+
+.v2-panel--debug {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
 }
 
 .v2-panel h1,

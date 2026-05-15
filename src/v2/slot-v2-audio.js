@@ -21,9 +21,9 @@
   };
 
   const reelProfiles = [
-    { gain: 0.26, rate: 0.985, pan: -0.28 },
-    { gain: 0.22, rate: 1.0, pan: 0 },
-    { gain: 0.24, rate: 1.018, pan: 0.28 },
+    { gain: 0.72, rate: 0.985, pan: -0.28 },
+    { gain: 0.66, rate: 1.0, pan: 0 },
+    { gain: 0.7, rate: 1.018, pan: 0.28 },
   ];
   const stopProfiles = [
     { gain: 0.43, rate: 1.03 },
@@ -114,6 +114,7 @@
     ]));
     const reelSpinning = [false, false, false];
     const reelNodes = [null, null, null];
+    const reelPlayStats = reelLoops.map(() => ({ starts: 0, failures: 0, lastError: null }));
     const activeOneShots = new Set();
     const bgmFadeTimers = new Map();
     const bgmStartCounts = Object.fromEntries(Object.keys(bgmElements).map((kind) => [kind, 0]));
@@ -324,7 +325,15 @@
         setReelGain(index, effectiveReelGain(index));
         reel.playbackRate = reelProfiles[index].rate;
         reelSpinning[index] = true;
-        reel.play?.().catch(() => {});
+        reelPlayStats[index].starts += 1;
+        reelPlayStats[index].lastError = null;
+        const playPromise = reel.play?.();
+        if (playPromise?.catch) {
+          playPromise.catch((error) => {
+            reelPlayStats[index].failures += 1;
+            reelPlayStats[index].lastError = error?.name || error?.message || "play failed";
+          });
+        }
       });
     }
 
@@ -417,6 +426,18 @@
         failedCount,
         nodeFailedCount,
         webAudioReels: reelNodes.map((node) => Boolean(node?.gainNode)),
+        reels: reelLoops.map((reel, index) => ({
+          index,
+          src: reel.currentSrc || reel.src || "",
+          paused: Boolean(reel.paused),
+          currentTime: Number((reel.currentTime || 0).toFixed(3)),
+          volume: Number((reel.volume || 0).toFixed(3)),
+          playbackRate: Number((reel.playbackRate || 0).toFixed(3)),
+          readyState: reel.readyState,
+          starts: reelPlayStats[index].starts,
+          failures: reelPlayStats[index].failures,
+          lastError: reelPlayStats[index].lastError,
+        })),
         volumes: getVolumes(),
         bgm: {
           current: currentBgmKind,

@@ -10,7 +10,8 @@
     <main class="v2-stage-viewport">
       <section class="v2-stage" aria-label="トシヤイズムスロットV2">
         <div class="v2-machine">
-        <img class="v2-machine__art" src="./assets/mock/room-style-shell-v1-alpha.png" alt="">
+        <img class="v2-machine__background" data-v2-skin-background alt="" hidden>
+        <img class="v2-machine__cabinet" data-v2-skin-cabinet src="./assets/mock/room-style-shell-v1-alpha.png" alt="">
         <div class="v2-status" aria-label="ゲーム状況">
           <div class="v2-meter"><span>メダル</span><strong id="v2Coins">300</strong></div>
           <div class="v2-meter"><span>総ゲーム</span><strong id="v2TotalGames">0</strong></div>
@@ -62,6 +63,24 @@
           <button type="button" data-v2-stop="1">中</button>
           <button type="button" data-v2-stop="2">右</button>
         </div>
+        <div class="v2-appearance-switch" aria-label="見た目切替">
+          <div class="v2-appearance-switch__group" aria-label="背景切替">
+            <span class="v2-appearance-switch__label">背景</span>
+            <div class="v2-appearance-buttons">
+              <button type="button" data-v2-background-choice="default">黒</button>
+              <button type="button" data-v2-background-choice="space-v1">宇宙</button>
+              <button type="button" data-v2-background-choice="toshiya-room-v1">部屋</button>
+            </div>
+          </div>
+          <div class="v2-appearance-switch__group" aria-label="筐体切替">
+            <span class="v2-appearance-switch__label">筐体</span>
+            <div class="v2-appearance-buttons">
+              <button type="button" data-v2-cabinet-choice="default">通常</button>
+              <button type="button" data-v2-cabinet-choice="space-v1">赤金</button>
+              <button type="button" data-v2-cabinet-choice="toshiya-motif-v1">トシヤ</button>
+            </div>
+          </div>
+        </div>
         </div>
         <aside class="v2-side">
         <section class="v2-panel">
@@ -69,7 +88,7 @@
           <p class="v2-message" id="v2Message">待機中</p>
           <a class="v2-link" href="./index.html">現行版へ戻る</a>
         </section>
-        <section class="v2-panel" aria-label="デバッグ表示">
+        <section class="v2-panel v2-panel--debug" aria-label="デバッグ表示">
           <h2>Debug</h2>
           <div class="v2-debug-grid">
             <div><span>内部状態</span><strong id="v2InternalState">通常</strong></div>

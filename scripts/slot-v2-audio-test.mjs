@@ -38,6 +38,30 @@ function assertReelAudio(label, actual, expected) {
   if (value !== target) failed.push(`${label}: expected reelSpinning ${target}, got ${value}`);
 }
 
+function assertReelPlayback(label, before, after, expectedPlaying) {
+  const reels = after?.audioDebug?.reels || [];
+  const previous = before?.audioDebug?.reels || [];
+  expectedPlaying.forEach((shouldPlay, index) => {
+    const reel = reels[index];
+    if (!reel) {
+      failed.push(`${label}: missing reel audio debug for reel ${index}`);
+      return;
+    }
+    if (reel.failures > 0) {
+      failed.push(`${label}: reel ${index} play failed ${reel.failures} time(s): ${reel.lastError || "unknown"}`);
+    }
+    if (shouldPlay) {
+      if (reel.paused) failed.push(`${label}: reel ${index} should be playing but is paused`);
+      const beforeTime = previous[index]?.currentTime || 0;
+      if (reel.currentTime <= beforeTime) {
+        failed.push(`${label}: reel ${index} currentTime did not advance, before=${beforeTime}, after=${reel.currentTime}`);
+      }
+    } else if (!reel.paused) {
+      failed.push(`${label}: reel ${index} should be stopped but is still playing`);
+    }
+  });
+}
+
 function assertVolume(label, actual, key, expected) {
   const value = actual?.audioDebug?.volumes?.[key];
   if (Math.abs(value - expected) > 0.001) failed.push(`${label}: expected ${key} volume ${expected}, got ${value}`);
@@ -153,9 +177,12 @@ if (bgmStoppedAudio.audioDebug?.bgm?.current !== null) {
 }
 
 await resetForSpin();
+const beforeFirstSpinAudio = await state();
 await page.keyboard.press("Space");
-await page.waitForTimeout(80);
-assertReelAudio("after starting spin", await state(), [true, true, true]);
+await page.waitForTimeout(260);
+const afterFirstSpinAudio = await state();
+assertReelAudio("after starting spin", afterFirstSpinAudio, [true, true, true]);
+assertReelPlayback("after starting spin", beforeFirstSpinAudio, afterFirstSpinAudio, [true, true, true]);
 
 await page.keyboard.press("KeyZ");
 await page.waitForTimeout(30);
@@ -170,8 +197,10 @@ await page.waitForTimeout(80);
 assertReelAudio("after right stop", await state(), [false, false, false]);
 
 await resetForSpin();
+const beforeSpaceSpinAudio = await state();
 await page.keyboard.press("Space");
-await page.waitForTimeout(80);
+await page.waitForTimeout(260);
+assertReelPlayback("space spin starts reel audio", beforeSpaceSpinAudio, await state(), [true, true, true]);
 await page.keyboard.press("Space");
 await page.waitForTimeout(30);
 assertReelAudio("space stop left", await state(), [false, true, true]);

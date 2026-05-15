@@ -6,6 +6,43 @@
   const scenePlayerFactory = global.ToshiyaSlotV2ScenePlayer;
   const audioFactory = global.ToshiyaSlotV2Audio;
   const audioVolumeStorageKey = "toshiyaizm-slot-v2-audio-volumes";
+  const legacySkinStorageKey = "toshiyaizm-slot-v2-skin";
+  const cabinetStorageKey = "toshiyaizm-slot-v2-cabinet";
+  const backgroundStorageKey = "toshiyaizm-slot-v2-background";
+  const cabinetRegistry = {
+    default: {
+      id: "default",
+      label: "default",
+      src: "./assets/mock/room-style-shell-v1-alpha.png",
+    },
+    "space-v1": {
+      id: "space-v1",
+      label: "赤金",
+      src: "./assets/skins/v2/space-v1/cabinet-alpha.png",
+    },
+    "toshiya-motif-v1": {
+      id: "toshiya-motif-v1",
+      label: "トシヤ",
+      src: "./assets/skins/v2/toshiya-motif-v1/cabinet-alpha.png",
+    },
+  };
+  const backgroundRegistry = {
+    default: {
+      id: "default",
+      label: "黒",
+      src: "",
+    },
+    "space-v1": {
+      id: "space-v1",
+      label: "宇宙",
+      src: "./assets/skins/v2/space-v1/background-space.png",
+    },
+    "toshiya-room-v1": {
+      id: "toshiya-room-v1",
+      label: "部屋",
+      src: "./assets/skins/v2/toshiya-room-v1/background-room.png",
+    },
+  };
   const defaultAudioVolumes = {
     master: 1,
     reel: 1,
@@ -48,6 +85,10 @@
     debugMeoshiRole: document.querySelector("#v2DebugMeoshiRole"),
     debugMeoshiApply: document.querySelector("#v2DebugMeoshiApply"),
     debugMeoshiForce: document.querySelector("#v2DebugMeoshiForce"),
+    backgroundButtons: [...document.querySelectorAll("[data-v2-background-choice]")],
+    cabinetButtons: [...document.querySelectorAll("[data-v2-cabinet-choice]")],
+    skinBackground: document.querySelector("[data-v2-skin-background]"),
+    skinCabinet: document.querySelector("[data-v2-skin-cabinet]"),
     audioVolumeInputs: [...document.querySelectorAll("[data-v2-audio-volume]")],
     audioVolumeOutputs: [...document.querySelectorAll("[data-v2-audio-volume-value]")],
   };
@@ -58,6 +99,8 @@
   });
   let audioVolumes = loadAudioVolumeSettings();
   const slotAudio = audioFactory?.create?.({ volumes: audioVolumes }) || null;
+  let activeCabinetId = resolveInitialLayerId("cabinet");
+  let activeBackgroundId = resolveInitialLayerId("background");
   let rng = Math.random;
   let state = loadState();
   let meoshiTuning = {
@@ -78,6 +121,7 @@
   const reelCycleHeight = rules.reel.symbolCount * reelCellHeight;
   const reelCopyRange = 5;
   const reelSpeedPxPerMs = reelCellHeight / rules.reel.spinMsPerSymbol;
+  applyAppearance({ skipSave: true, skipUrl: true });
   prepareReelCopies();
   const reelStates = dom.reels.map((reel, index) => ({
     index,
@@ -106,6 +150,142 @@
         reel.appendChild(image);
       }
     });
+  }
+
+  function registryForLayer(layer) {
+    return layer === "background" ? backgroundRegistry : cabinetRegistry;
+  }
+
+  function storageKeyForLayer(layer) {
+    return layer === "background" ? backgroundStorageKey : cabinetStorageKey;
+  }
+
+  function normalizeLayerId(layer, id) {
+    const registry = registryForLayer(layer);
+    return Object.hasOwn(registry, id) ? id : "default";
+  }
+
+  function readSearchParam(name) {
+    try {
+      return new URLSearchParams(global.location?.search || "").get(name);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function resolveInitialLayerId(layer) {
+    const directParam = readSearchParam(layer);
+    if (directParam !== null) return normalizeLayerId(layer, directParam);
+    const legacySkinParam = readSearchParam("skin");
+    if (legacySkinParam !== null) return normalizeLayerId(layer, legacySkinParam);
+    try {
+      const stored = localStorage.getItem(storageKeyForLayer(layer));
+      if (stored) return normalizeLayerId(layer, stored);
+      return normalizeLayerId(layer, localStorage.getItem(legacySkinStorageKey));
+    } catch (_) {
+      return "default";
+    }
+  }
+
+  function syncAppearanceUrl() {
+    try {
+      const url = new URL(global.location.href);
+      url.searchParams.delete("skin");
+      if (activeCabinetId === "default") {
+        url.searchParams.delete("cabinet");
+      } else {
+        url.searchParams.set("cabinet", activeCabinetId);
+      }
+      if (activeBackgroundId === "default") {
+        url.searchParams.delete("background");
+      } else {
+        url.searchParams.set("background", activeBackgroundId);
+      }
+      global.history.replaceState(null, "", url);
+    } catch (_) {}
+  }
+
+  function syncAppearanceControls() {
+    dom.cabinetButtons.forEach((button) => {
+      const active = button.dataset.v2CabinetChoice === activeCabinetId;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+    dom.backgroundButtons.forEach((button) => {
+      const active = button.dataset.v2BackgroundChoice === activeBackgroundId;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  function applyAppearance(options = {}) {
+    const cabinet = cabinetRegistry[activeCabinetId] || cabinetRegistry.default;
+    const background = backgroundRegistry[activeBackgroundId] || backgroundRegistry.default;
+    document.documentElement.dataset.v2Cabinet = cabinet.id;
+    document.documentElement.dataset.v2Background = background.id;
+    if (dom.skinCabinet) {
+      dom.skinCabinet.src = cabinet.src;
+    }
+    if (dom.skinBackground) {
+      if (background.src) {
+        dom.skinBackground.hidden = false;
+        dom.skinBackground.src = background.src;
+      } else {
+        dom.skinBackground.hidden = true;
+        dom.skinBackground.removeAttribute("src");
+      }
+    }
+    syncAppearanceControls();
+    if (!options.skipSave) {
+      try {
+        localStorage.setItem(cabinetStorageKey, activeCabinetId);
+        localStorage.setItem(backgroundStorageKey, activeBackgroundId);
+        if (activeCabinetId === activeBackgroundId) {
+          localStorage.setItem(legacySkinStorageKey, activeCabinetId);
+        } else {
+          localStorage.removeItem(legacySkinStorageKey);
+        }
+      } catch (_) {}
+    }
+    if (!options.skipUrl) syncAppearanceUrl();
+    return getAppearanceDebug();
+  }
+
+  function applyCabinet(cabinetId, options = {}) {
+    activeCabinetId = normalizeLayerId("cabinet", cabinetId);
+    return applyAppearance(options);
+  }
+
+  function applyBackground(backgroundId, options = {}) {
+    activeBackgroundId = normalizeLayerId("background", backgroundId);
+    return applyAppearance(options);
+  }
+
+  function applySkin(skinId, options = {}) {
+    activeCabinetId = normalizeLayerId("cabinet", skinId);
+    activeBackgroundId = normalizeLayerId("background", skinId);
+    return applyAppearance(options);
+  }
+
+  function getAppearanceDebug() {
+    const cabinet = cabinetRegistry[activeCabinetId] || cabinetRegistry.default;
+    const background = backgroundRegistry[activeBackgroundId] || backgroundRegistry.default;
+    return {
+      cabinet: { id: cabinet.id, src: cabinet.src },
+      background: { id: background.id, src: background.src, hasBackground: Boolean(background.src) },
+    };
+  }
+
+  function getSkinDebug() {
+    const appearance = getAppearanceDebug();
+    return {
+      id: activeCabinetId === activeBackgroundId ? activeCabinetId : "custom",
+      cabinetId: activeCabinetId,
+      backgroundId: activeBackgroundId,
+      cabinet: appearance.cabinet.src,
+      background: appearance.background.src,
+      hasBackground: appearance.background.hasBackground,
+    };
   }
 
   function now() {
@@ -909,6 +1089,7 @@
     if (dom.debugBonusEntrySlip && document.activeElement !== dom.debugBonusEntrySlip) {
       dom.debugBonusEntrySlip.value = String(meoshiTuning.bonusEntrySlipCells);
     }
+    syncAppearanceControls();
     syncAudioVolumeControls();
   }
 
@@ -1005,6 +1186,8 @@
     renderReels();
     return JSON.stringify({
       route: "v2",
+      skin: getSkinDebug(),
+      appearance: getAppearanceDebug(),
       coins: state.coins,
       totalGames: state.totalGames,
       gamesSinceBonus: state.gamesSinceBonus,
@@ -1059,6 +1242,20 @@
   dom.debugReset?.addEventListener("click", () => {
     slotAudio?.playButton?.("confirm");
     resetDebugState();
+  });
+  dom.backgroundButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      slotAudio?.playButton?.("soft");
+      applyBackground(button.dataset.v2BackgroundChoice);
+      render();
+    });
+  });
+  dom.cabinetButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      slotAudio?.playButton?.("soft");
+      applyCabinet(button.dataset.v2CabinetChoice);
+      render();
+    });
   });
   dom.debugMeoshiApply?.addEventListener("click", () => {
     slotAudio?.playButton?.("soft");
@@ -1150,6 +1347,21 @@
     setAudioVolumes(data = {}) {
       applyAudioVolumeSettings(data);
       return renderGameToText();
+    },
+    setSkin(skinId) {
+      return JSON.stringify(applySkin(skinId));
+    },
+    setCabinet(cabinetId) {
+      return JSON.stringify(applyCabinet(cabinetId));
+    },
+    setBackground(backgroundId) {
+      return JSON.stringify(applyBackground(backgroundId));
+    },
+    getSkin() {
+      return JSON.stringify(getSkinDebug());
+    },
+    getAppearance() {
+      return JSON.stringify(getAppearanceDebug());
     },
   };
 

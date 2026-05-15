@@ -42,6 +42,7 @@ const requiredFiles = [
 
 const requiredDirs = [
   "assets/effects/runtime",
+  "assets/skins/v2",
   "assets/videos/v2",
   "assets/voices/v2",
 ];

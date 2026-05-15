@@ -42,7 +42,11 @@ await page.evaluate(() => {
   window.__toshiyaSlotV2Test.setRandomSequence([0.99, 0.99, 0.99, 0.99]);
   window.__toshiyaSlotV2Test.forceRole("blank");
 });
+await page.click('[data-v2-background-choice="toshiya-room-v1"]');
+await page.click('[data-v2-cabinet-choice="toshiya-motif-v1"]');
 await page.keyboard.press("Space");
+await page.waitForTimeout(260);
+const afterV2SpinStart = JSON.parse(await page.evaluate(() => window.render_game_to_text()));
 await page.keyboard.press("KeyZ");
 await page.keyboard.press("KeyX");
 await page.keyboard.press("KeyC");
@@ -50,9 +54,19 @@ const afterV2Spin = JSON.parse(await page.evaluate(() => window.render_game_to_t
 await page.screenshot({ path: path.join(root, "tmp", "dist-smoke-test.png"), fullPage: false });
 await browser.close();
 
-const result = { errors, failedRequests, afterSpin, afterToggle, afterV2Spin };
+const result = { errors, failedRequests, afterSpin, afterToggle, afterV2SpinStart, afterV2Spin };
 console.log(JSON.stringify(result, null, 2));
 
-if (errors.length > 0 || failedRequests.length > 0 || !afterSpin || afterToggle.mode !== "full" || afterV2Spin.route !== "v2") {
+const v2AudioStarted = afterV2SpinStart.audioDebug?.reels?.every((reel) => !reel.paused && reel.currentTime > 0 && reel.failures === 0);
+if (
+  errors.length > 0
+  || failedRequests.length > 0
+  || !afterSpin
+  || afterToggle.mode !== "full"
+  || afterV2Spin.route !== "v2"
+  || afterV2Spin.appearance?.cabinet?.id !== "toshiya-motif-v1"
+  || afterV2Spin.appearance?.background?.id !== "toshiya-room-v1"
+  || !v2AudioStarted
+) {
   process.exitCode = 1;
 }
