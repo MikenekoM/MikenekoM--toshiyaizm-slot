@@ -87,3 +87,7 @@ node scripts/visual-playtest-report.mjs
 node scripts/build-dist.mjs
 node scripts/dist-smoke-test.mjs
 ```
+
+## コードの関連箇所を調べる
+
+Graphifyによるローカル調査の準備と制約は [docs/graphify.md](docs/graphify.md) を参照してください。ゲームの起動には不要です。
