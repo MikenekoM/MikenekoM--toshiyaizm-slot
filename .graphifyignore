@@ -1,0 +1,15 @@
+# Index source and test code, never generated/media/credential content.
+.git/
+.agents/
+.codex/
+.graphify-venv/
+graphify-out/
+node_modules/
+dist/
+tmp/
+output/
+assets/
+secrets/
+.env*
+*.key
+*.pem

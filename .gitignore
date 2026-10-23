@@ -26,3 +26,7 @@ secrets/*
 .env.local
 *.key
 openai_api_key.txt
+
+# Local Graphify indexes and isolated Python environment
+graphify-out/
+.graphify-venv/
